@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RING FIRST – 進化するボクシング</title>
+<style>
+:root{--ink:#eef1f6;--gold:#e8b04a;--red:#d8473a;--blue:#4a8fe8;--panel:rgba(12,18,32,.78);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#0a0f1a;color:var(--ink);overflow:hidden;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",system-ui,sans-serif}
+canvas{display:block;width:100%;height:100%}
+#top{position:fixed;left:0;right:0;top:max(10px,env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:flex-start;padding:0 max(14px,env(safe-area-inset-left));gap:12px;pointer-events:none}
+.side{width:min(34vw,420px)}.side.r{text-align:right}
+.nm{font-weight:800;letter-spacing:.08em;font-size:13px;margin-bottom:3px}
+i.hp,i.st{display:block;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);overflow:hidden}
+i.hp{height:15px}i.st{height:7px;margin-top:3px}
+i b{display:block;height:100%;width:100%;transition:width .15s}
+.side.r i b{margin-left:auto}
+#mh{background:var(--blue)}#ch{background:var(--red)}#ms,#cs2{background:#e6cf5a}
+#mid{text-align:center;font-weight:900}#sc{font-size:30px;letter-spacing:.1em}#tm{font-size:15px;opacity:.8}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.side.r .chips{justify-content:flex-end}
+.chip{font-size:11px;padding:2px 6px;background:var(--panel);border:1px solid var(--rc,#999);color:var(--rc,#fff)}
+#cross{position:fixed;left:50%;top:50%;width:8px;height:8px;margin:-4px;border:2px solid rgba(255,255,255,.7);border-radius:50%;transition:.12s}
+#cross.hit{border-color:var(--gold);transform:scale(2.2)}
+#flash{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(transparent 45%,rgba(216,71,58,.55));transition:opacity .35s}
+#log{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));width:290px;display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.e{background:var(--panel);border-left:4px solid var(--gold);padding:5px 9px;font-size:13px;line-height:1.45;opacity:.6;animation:in .22s ease-out}
+.e.c{border-color:var(--red)}.e.full{opacity:1;font-size:15px;padding:8px 11px}
+.e b{color:var(--gold);margin-right:6px}.e.c b{color:var(--red)}
+.e span{display:inline}.e span+span:before{content:"｜";opacity:.5}
+.e.full span{display:block}.e.full span+span:before{content:""}
+@keyframes in{from{opacity:0;transform:translateX(-18px)}}
+#help{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));font-size:12px;line-height:1.65;background:var(--panel);padding:8px 11px;opacity:.82}
+#banner{position:fixed;left:0;right:0;top:30%;text-align:center;font-size:clamp(34px,8vw,72px);font-weight:900;letter-spacing:.08em;pointer-events:none;opacity:0;transform:scale(.9);transition:.2s;text-shadow:0 3px 18px #000}
+#banner.on{opacity:1;transform:none}
+#toast{position:fixed;left:0;right:0;top:44%;text-align:center;font-size:18px;font-weight:700;color:var(--gold);pointer-events:none;opacity:0;transition:.2s;text-shadow:0 2px 10px #000}
+#toast.on{opacity:1}
+.ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,10,20,.82);padding:16px}
+.ov.off{display:none}
+.card{width:min(560px,100%);background:#141c30;border:1px solid rgba(255,255,255,.14);padding:28px 28px 22px}
+h1{margin:0 0 4px;font-size:clamp(34px,8vw,54px);letter-spacing:.06em;font-weight:900;line-height:1}
+.sub{opacity:.75;margin:0 0 20px;font-size:14px}
+button{font:inherit;font-weight:800;letter-spacing:.06em;width:100%;padding:13px;margin-top:10px;border:0;cursor:pointer;background:var(--gold);color:#1a1405}
+button:hover{filter:brightness(1.1)}button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+button[disabled]{background:#2a3350;color:#9aa4bd;cursor:not-allowed}
+.note{font-size:12px;opacity:.7;margin:6px 0 0;line-height:1.5}
+.keys{margin-top:16px;font-size:12.5px;line-height:1.7;opacity:.88}
+#res{font-size:42px;font-weight:900;margin:0 0 6px}
+#evo{flex-direction:column;gap:14px}
+#evo h2{margin:0;font-size:24px;letter-spacing:.06em}
+#cards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;width:min(980px,100%)}
+.cd{flex:1 1 250px;max-width:310px;background:#141c30;border:2px solid var(--rc);padding:16px;cursor:pointer;position:relative;min-height:210px}
+.cd.sel{box-shadow:0 0 0 3px var(--rc),0 0 30px -4px var(--rc);transform:translateY(-4px)}
+.cd .rr{color:var(--rc);font-weight:800;font-size:12px;letter-spacing:.1em}
+.cd h3{margin:4px 0 8px;font-size:19px}.cd small{opacity:.7;font-weight:400;font-size:12px}
+.cd p{margin:6px 0;font-size:13.5px;line-height:1.55}.cd .pn{color:#ff8a7a}.cd .sy{color:#6fe0c4}.cd .hint{opacity:.65}
+.cd kbd{position:absolute;right:10px;top:10px;background:#222c48;padding:2px 8px;font-size:12px}
+#evh{font-size:12px;opacity:.7}
+
+/* ---- ONLINE ---- */
+.alt{background:#2a3350;color:var(--ink)}.alt:hover{filter:brightness(1.25)}
+.inl{width:auto;margin:0;padding:12px 16px}
+input{font:inherit;background:#0e1424;border:1px solid rgba(255,255,255,.25);color:var(--ink);padding:11px 12px;letter-spacing:.08em;min-width:0}
+input:focus-visible{outline:2px solid var(--gold)}
+.row{display:flex;gap:8px;margin-top:10px}.row input{flex:1;text-transform:uppercase}
+.fl{display:block;font-size:12px;opacity:.85;margin-top:6px}.fl input{display:block;width:100%;margin-top:4px;text-transform:none}
+#onmsg{white-space:pre-wrap;font:inherit;font-size:13px;line-height:1.6;color:#ffd9a0;margin:12px 0 0;min-height:1.2em}
+.lbtop{display:flex;align-items:center;gap:12px}
+#lcode{font-size:42px;letter-spacing:.2em;font-weight:900;color:var(--gold);flex:1}
+.slot{display:flex;align-items:center;gap:10px;padding:9px 10px;background:#0e1424;border-left:4px solid #333;margin-top:6px}
+.slot.empty{opacity:.45}.sw{width:14px;height:14px;display:inline-block}.pn{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:11px;padding:2px 7px;background:#222c48}.tag.ok{background:#1f5d3a}.tag.bad{background:#6b2a24}
+#lmode{display:flex;gap:8px;margin-top:12px}#lmode button{margin:0;padding:9px;font-size:13px;background:#2a3350;color:var(--ink)}
+#lmode button.on{background:var(--gold);color:#1a1405}#lmode button:disabled{opacity:.5}
+#onstat{position:fixed;top:max(70px,calc(env(safe-area-inset-top) + 56px));left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--gold);padding:8px 14px;font-size:13px;line-height:1.55;display:none;white-space:pre-wrap;text-align:center;z-index:9;max-width:90vw}
+#onstat.on{display:block}
+#ping{position:fixed;top:60px;left:50%;transform:translateX(-50%);font-size:11px;opacity:.6;pointer-events:none}
+#bubbles{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.bub{position:absolute;transform:translate(-50%,calc(-100% - 8px));max-width:200px;background:#fff;color:#141c30;padding:6px 10px;font-size:14px;line-height:1.35;border-radius:10px;word-break:break-word;white-space:pre-wrap;font-weight:600;box-shadow:0 2px 10px #0008}
+.bub:after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:#fff}
+.bub.self{position:fixed;left:50%;top:auto;bottom:86px;transform:translateX(-50%)}.bub.self:after{display:none}
+#chat{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:150px;width:280px;background:var(--panel);display:flex;flex-direction:column;z-index:5}
+#chat.off{display:none}
+#chead{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;font-size:12px;font-weight:800;letter-spacing:.1em}
+#chead button{width:auto;margin:0;padding:1px 8px;background:#222c48;color:var(--ink)}
+#clog{height:150px;overflow-y:auto;padding:4px 8px;font-size:12.5px;line-height:1.5;word-break:break-word}
+#chat.min #clog,#chat.min #cin{display:none}
+#clog b{margin-right:6px}#clog .sys{opacity:.6;font-style:italic}
+#cin{margin:0;width:100%;font-size:13px;letter-spacing:0;border-width:1px 0 0}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="top">
+ <div class="side"><div class="nm">YOU</div><i class="hp"><b id="mh"></b></i><i class="st"><b id="ms"></b></i><div class="chips" id="pc"></div></div>
+ <div id="mid"><div id="sc">0 - 0</div><div id="tm">60</div></div>
+ <div class="side r"><div class="nm" id="cn">CPU</div><i class="hp"><b id="ch"></b></i><i class="st"><b id="cs2"></b></i><div class="chips" id="cc"></div></div>
+</div>
+<div id="cross"></div><div id="flash"></div><div id="banner"></div><div id="toast"></div>
+<div id="log"></div>
+<div id="help">W/S 前進・後退　A/D 相手の周りを移動<br>J 左／K 右パンチ（＋WASD同時押しで種類変化）<br>Shift(長押し) ガード　E(長押し) 頭部ガード<br>Q/R(タップ) 左右スウェー　Space(タップ) ダッキング<br>同じ方向キー2回でダッシュ</div>
+<div id="menu" class="ov"><div class="card">
+<h1>RING FIRST</h1><p class="sub">3ポイント先取。ポイントごとに進化して、自分だけのビルドで戦う。</p>
+<button id="bcpu">CPU対戦を始める</button>
+<button id="bonl" class="alt">ONLINE BATTLE（フェーズ1：1対1 DUEL）</button>
+<p class="note">オンライン対戦には専用サーバー（README参照）が必要です。CPU戦はサーバー無しでそのまま遊べます。</p>
+<div class="keys">操作はすべてキーボードだけ。カメラは相手を滑らかに追従します。<br>J：なし=ジャブ W=アッパー A=フック S=逆フック D=ボディ<br>K：なし=ストレート W=アッパー A=ボディフック S=フック D=ボディ<br>同時押しの優先順位：W ＞ S ＞ A ＞ D<br>進化の選択：1／2／3、または A／D で選んで Enter</div>
+</div></div>
+<div id="evo" class="ov off"><h2 id="evt">進化を選択</h2><div id="cards"></div><div id="evh">1 / 2 / 3 で選択、A / D で移動、Enter で決定</div></div>
+<div id="over" class="ov off"><div class="card"><p id="res"></p><p class="sub" id="rs"></p><button id="bre">新しい試合を始める</button></div></div>
+
+<div id="onl" class="ov off"><div class="card">
+<h1 style="font-size:clamp(28px,6vw,40px)">ONLINE BATTLE</h1><p class="sub">ルームコードで友達と対戦（フェーズ1：1対1 DUEL）</p>
+<label class="fl">プレイヤー名<input id="onname" maxlength="12" autocomplete="off"></label>
+<button id="oncreate">CREATE ROOM</button>
+<div class="row"><input id="oncode" maxlength="6" placeholder="ROOM CODE" autocomplete="off" aria-label="ルームコード"><button id="onjoin" class="inl">JOIN ROOM</button></div>
+<button id="onrejoin" class="alt" style="display:none">前回のルームに復帰する</button>
+<pre id="onmsg"></pre>
+<button id="onback" class="alt">BACK</button>
+</div></div>
+<div id="lobby" class="ov off"><div class="card">
+<div class="lbtop"><div><div class="sub" style="margin:0">ROOM CODE</div><div id="lcode"></div></div><button id="lcopy" class="inl">COPY</button></div>
+<div id="slots"></div><div id="lmode"></div>
+<p id="lmsg" class="note"></p>
+<button id="lready">準備完了</button><button id="lstart">START</button><button id="lleave" class="alt">LEAVE</button>
+</div></div>
+<div id="onres" class="ov off"><div class="card"><p id="onrt" style="font-size:42px;font-weight:900;margin:0 0 6px"></p><p class="sub" id="onrs"></p><button id="onlb">ロビーに戻る</button></div></div>
+<div id="onstat" role="status"></div><div id="ping"></div><div id="bubbles"></div>
+<div id="chat" class="off"><div id="chead"><span>CHAT（Enterで入力）</span><button id="ctog" aria-label="チャットの開閉">–</button></div><div id="clog" aria-live="polite"></div><input id="cin" maxlength="80" placeholder="メッセージ…" autocomplete="off"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game-core.js"></script>
+<script>
+"use strict";
+/* RING FIRST — index.html。戦闘ロジック・CPU・進化は game-core.js（RFCore）に分離しています。 */
+const {CFG,STEP,V,clamp,rnd,angd,pc,PUNCHES,PM,PRI,AB,ABM,SYN,RN,RC,calc,rollR,offer,Fighter,IDLE,STY,AI,combat,separate,lerpSnap,segDist}=RFCore;
+const $=id=>document.getElementById(id);
+/* ============ 入力（キー→意図） ============ */
+class Input{
+ constructor(){this.k=new Set();this.last={};this.dashReq=null;this.pq={L:null,R:null};this.sw=0;this.dk=false}
+ clear(){this.k.clear();this.dashReq=null;this.pq={L:null,R:null};this.sw=0;this.dk=false}
+ key(e){return e.code.startsWith('Key')?e.code.slice(3).toLowerCase():e.code}
+ down(e){const c=this.key(e);if(e.repeat)return;this.k.add(c);
+  if(c.length===1&&'wasd'.includes(c)){const n=performance.now();if(n-(this.last[c]||-1e9)<CFG.doubleTapMs){this.dashReq=c;this.last[c]=-1e9}else this.last[c]=n}
+  if(c==='j'||c==='k'){const dir=PRI.find(x=>this.k.has(x))||'none';this.pq[c==='j'?'L':'R']=PM[c.toUpperCase()][dir]}
+  if(c==='q')this.sw=-1;if(c==='r')this.sw=1;if(c==='Space')this.dk=true}
+ up(e){this.k.delete(this.key(e))}
+ intent(){const K=this.k,D={w:{x:0,z:1},s:{x:0,z:-1},a:{x:-1,z:0},d:{x:1,z:0}};
+  const I={mx:(K.has('d')?1:0)-(K.has('a')?1:0),mz:(K.has('w')?1:0)-(K.has('s')?1:0),punch:{L:this.pq.L,R:this.pq.R},
+   guard:K.has('e')?2:(K.has('ShiftLeft')||K.has('ShiftRight'))?1:0,dash:this.dashReq?D[this.dashReq]:null,sway:this.sw,duck:this.dk};
+  this.dashReq=null;this.pq={L:null,R:null};this.sw=0;this.dk=false;return I}
+}
+
+/* ============ 音・UI ============ */
+const SFX={c:null,p(f,d,t,v){try{this.c=this.c||new AudioContext();const o=this.c.createOscillator(),g=this.c.createGain(),n=this.c.currentTime;
+ o.type=t||'square';o.frequency.value=f;g.gain.setValueAtTime(v||.05,n);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(this.c.destination);o.start();o.stop(n+d)}catch(e){}}};
+const fmtV=(a,v)=>a.k==='sm'?'+'+v:'+'+pc(v)+'%';
+const UI={
+ logHit(ev){const L=$('log');L.querySelectorAll('.full').forEach(e=>e.classList.remove('full'));
+  const d=document.createElement('div');d.className='e full'+(ev.byPlayer?'':' c');
+  const head=ev.byPlayer?(ev.blocked?'[GUARDED]':'[HIT]'):(ev.blocked?'[被弾/ガード]':'[被弾]');
+  d.innerHTML=`<b>${head}</b><span>部位：${ev.zone}</span><span>パンチ：${ev.punch}</span><span>拳の速度：${ev.speed.toFixed(1)} m/s</span><span>ダメージ：${ev.dmg.toFixed(1)}</span>`+(ev.tags.length?`<span>${ev.tags.join(' ')}</span>`:'');
+  L.appendChild(d);while(L.children.length>6)L.removeChild(L.firstChild)},
+ banner(t,ms,col){const b=$('banner');b.textContent=t;b.style.color=col||'#fff';b.classList.add('on');clearTimeout(this.bt);this.bt=setTimeout(()=>b.classList.remove('on'),ms||1200)},
+ toast(t,ms){const b=$('toast');b.textContent=t;b.classList.add('on');clearTimeout(this.tt);this.tt=setTimeout(()=>b.classList.remove('on'),ms||1400)},
+ chips(f,el){const c={};f.picks.forEach(p=>{const k=p.id+p.r;c[k]=c[k]||{p,n:0};c[k].n++});
+  el.innerHTML=Object.values(c).map(x=>`<span class="chip" style="--rc:${RC[x.p.r]}">${ABM[x.p.id].n}${x.n>1?' ×'+x.n:''}</span>`).join('')},
+ cards(offs,own,M,sel){const cnt={};own.forEach(p=>cnt[p.id]=(cnt[p.id]||0)+1);const ids=new Set(own.map(p=>p.id));
+  $('cards').innerHTML=offs.map((o,i)=>{const a=ABM[o.id];let fx,pen='';
+   if(a.v){const v=a.v[o.r],now=M[a.k];fx=`${a.l} ${fmtV(a,v)}<br><small>現在 ${a.k==='sm'?'+'+now:'+'+pc(now)+'%'} → ${a.k==='sm'?'+'+(now+v):'+'+pc(now+v)+'%'}</small>`;
+    if(a.p&&a.p[1][o.r])pen=a.p[2].replace('#',pc(Math.abs(a.p[1][o.r])))}else{fx=a.d;pen=a.pen||''}
+   let sy='';for(const s of SYN)if(s.need.includes(a.id)){const rest=s.need.filter(x=>x!==a.id);
+    if(rest.every(x=>ids.has(x)))sy+=`<p class="sy">シナジー発動：${s.n}<br>${s.d}</p>`;else if(rest.some(x=>ids.has(x)))sy+=`<p class="hint">…取得済みの能力と組み合わせると、何かが起きそうだ。</p>`}
+   return `<div class="cd${i===sel?' sel':''}" data-i="${i}" style="--rc:${RC[o.r]}"><kbd>${i+1}</kbd><div class="rr">${RN[o.r]}</div><h3>${a.n}${cnt[a.id]?` <small>所持 ×${cnt[a.id]}</small>`:''}</h3><p>${fx}</p>${pen?`<p class="pn">代償：${pen}</p>`:''}${sy}</div>`}).join('')}
+};
+
+/* ============ 描画 ============ */
+function place(m,a,b){const d=b.clone().sub(a),l=d.length();m.position.copy(a).addScaledVector(d,.5);m.scale.y=Math.max(l,1e-3);m.quaternion.setFromUnitVectors(new V(0,1,0),d.normalize())}
+class Rig{
+ constructor(scene,f,fp,skin,glove,trunk,hair){
+  this.f=f;this.fp=fp;this.ph=0;const g=this.g=new THREE.Group();scene.add(g);
+  const M=(c,r,m)=>new THREE.MeshStandardMaterial({color:c,roughness:r||.6,metalness:m||0}),sk=M(skin,.62),gl=M(glove,.38),tr=M(trunk,.5);
+  const add=(geo,mat,x,y,z,p,s)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(s)m.scale.set(s[0],s[1],s[2]);m.castShadow=true;(p||g).add(m);return m};
+  const S=(r,w,h)=>new THREE.SphereGeometry(r,w||20,h||16),C=(a,b,h,s)=>new THREE.CylinderGeometry(a,b,h,s||14);
+  const b=this.body=new THREE.Group();b.position.y=.85;g.add(b);b.visible=!fp;
+  add(C(.2,.22,.3),tr,0,-.02,0,b,[1,1,.75]);add(C(.215,.215,.05),M(0xf2f2f2),0,.13,0,b,[1,1,.75]);
+  add(S(.2),sk,0,.2,0,b,[1,1.1,.75]);add(S(.26),sk,0,.5,0,b,[1.12,.95,.78]);
+  for(const s of[-1,1])add(S(.08),sk,s*.27,.6,0,b);
+  add(C(.06,.075,.12,10),sk,0,.7,0,b);
+  const hd=this.head=new THREE.Group();hd.position.set(0,.79,0);b.add(hd);
+  add(S(.17),sk,0,0,0,hd,[.95,1.12,1.05]);add(S(.18,20,10).clone(),M(hair,.8),0,.03,.015,hd,[.98,.9,1.05]);
+  for(const s of[-1,1]){add(S(.02,8,8),M(0x111111),s*.06,.03,-.155,hd);add(S(.03,8,8),sk,s*.17,0,0,hd,[.5,1,.8])}
+  add(S(.03,8,8),sk,0,-.01,-.175,hd);
+  const legs=this.legs=new THREE.Group();g.add(legs);legs.visible=!fp;this.lg={};
+  for(const k of[-1,1]){const lg=new THREE.Group();lg.position.set(k*.12,.85,k<0?-.1:.1);legs.add(lg);
+   add(C(.1,.075,.44),sk,0,-.22,0,lg);const sh=new THREE.Group();sh.position.set(0,-.44,0);lg.add(sh);
+   add(C(.07,.055,.42),sk,0,-.21,0,sh);add(new THREE.BoxGeometry(.11,.07,.26),M(0x1a1a22,.5),0,-.42,-.05,sh);this.lg[k]=lg}
+  this.arm={};
+  for(const k of['L','R']){const up=add(new THREE.CylinderGeometry(.06,.055,1,10),sk,0,0,0,scene),fo=add(new THREE.CylinderGeometry(.055,.06,1,10),sk,0,0,0,scene),
+   gv=add(S(.128,18,14),gl,0,0,0,scene,[1,.95,1.28]);this.arm[k]={up,fo,gv}}}
+ dispose(scene){scene.remove(this.g);for(const k in this.arm){const a=this.arm[k];for(const m of[a.up,a.fo,a.gv]){scene.remove(m);m.geometry.dispose()}}
+  this.g.traverse(m=>{if(m.geometry)m.geometry.dispose()})}
+ sync(dt){const f=this.f,g=this.g,o=f.off;g.position.set(f.p.x,0,f.p.z);g.rotation.y=f.yaw;
+  const ko=f.hp<=0?Math.min(1.45,f.koT*2.8):0;g.rotation.x=ko;
+  const dk=-o.y/CFG.duck.drop,tw=(f.h.R.ext-f.h.L.ext)*.5;
+  this.body.position.set(o.x*.9,.85+o.y*.6,0);this.body.rotation.set(-.55*dk+f.shake*.22,tw,-o.x*.6);this.head.rotation.set(f.shake*.5,-tw*.6,0);
+  const lv=f.v.dot(f.right())/3.4,lz=f.v.dot(f.fwd())/3.4,sp=Math.hypot(lv,lz);this.ph+=sp*dt*9;
+  for(const k of[-1,1]){const l=this.lg[k],s=Math.sin(this.ph+(k>0?Math.PI:0));l.rotation.x=s*.45*lz;l.rotation.z=-s*.35*lv;l.children[1].rotation.x=Math.max(0,-s)*.5*sp+.1}
+  for(const k of['L','R']){const m=k==='L'?-1:1,a=this.arm[k],sh=f.toWorld(new V(.25*m,1.42,0)),gp=f.toWorld(f.h[k].local),el=sh.clone().lerp(gp,.5);
+   el.y-=.13;el.addScaledVector(f.right(),.1*m);place(a.up,sh,el);place(a.fo,el,gp);a.gv.position.copy(gp);a.gv.rotation.y=f.yaw}}
+}
+class View{
+ constructor(canvas,P,C){
+  this.P=P;this.C=C;const R=this.r=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});R.setPixelRatio(Math.min(devicePixelRatio,1.5));
+  R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+  const S=this.s=new THREE.Scene();S.background=new THREE.Color(0x0a0f1a);S.fog=new THREE.Fog(0x0a0f1a,14,36);
+  this.cam=new THREE.PerspectiveCamera(75,1,.04,60);this.cam.rotation.order='YXZ';
+  S.add(new THREE.HemisphereLight(0xcfdcff,0x2a1c10,.75));
+  const sun=new THREE.DirectionalLight(0xfff0d8,1);sun.position.set(3,9,4);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+  Object.assign(sun.shadow.camera,{left:-6,right:6,top:6,bottom:-6,near:1,far:24});S.add(sun);
+  const cv=document.createElement('canvas');cv.width=cv.height=512;const x=cv.getContext('2d');
+  x.fillStyle='#23468a';x.fillRect(0,0,512,512);x.strokeStyle='rgba(255,255,255,.14)';x.lineWidth=2;
+  for(let i=0;i<512;i+=32){x.beginPath();x.moveTo(i,0);x.lineTo(i,512);x.moveTo(0,i);x.lineTo(512,i);x.stroke()}
+  x.strokeStyle='#e8b04a';x.lineWidth=10;x.beginPath();x.arc(256,256,150,0,7);x.stroke();x.strokeStyle='#d8473a';x.lineWidth=18;x.strokeRect(9,9,494,494);
+  const side=new THREE.MeshStandardMaterial({color:0x151b2b}),top=new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(cv),roughness:.8});
+  const fl=new THREE.Mesh(new THREE.BoxGeometry(8,.4,8),[side,side,top,side,side,side]);fl.position.y=-.2;fl.receiveShadow=true;S.add(fl);
+  const gnd=new THREE.Mesh(new THREE.PlaneGeometry(80,80),new THREE.MeshStandardMaterial({color:0x0e1424}));gnd.rotation.x=-Math.PI/2;gnd.position.y=-.41;gnd.receiveShadow=true;S.add(gnd);
+  const rope=new THREE.CylinderGeometry(.035,.035,7.4,8);
+  [.6,1.0,1.4].forEach((h,i)=>{const mt=new THREE.MeshStandardMaterial({color:i===1?0xf2f2f2:0xd8473a,roughness:.5});
+   for(const [px,pz,ry] of[[0,-3.7,0],[0,3.7,0],[-3.7,0,Math.PI/2],[3.7,0,Math.PI/2]]){const gr=new THREE.Group(),m=new THREE.Mesh(rope,mt);m.rotation.z=Math.PI/2;gr.add(m);gr.position.set(px,h,pz);gr.rotation.y=ry;S.add(gr)}});
+  for(const px of[-3.7,3.7])for(const pz of[-3.7,3.7]){const p=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1.6,12),new THREE.MeshStandardMaterial({color:(px*pz>0)?0xd8473a:0x2f6fe0}));p.position.set(px,.8,pz);S.add(p)}
+  for(const px of[-3,3])for(const pz of[-3,3]){const l=new THREE.Mesh(new THREE.BoxGeometry(1.2,.12,1.2),new THREE.MeshBasicMaterial({color:0xfff2cc}));l.position.set(px,7,pz);S.add(l)}
+  const cr=new THREE.InstancedMesh(new THREE.SphereGeometry(.3,8,6),new THREE.MeshStandardMaterial({roughness:1}),90),mx=new THREE.Matrix4(),col=new THREE.Color();
+  for(let i=0;i<90;i++){const a=i/90*Math.PI*2,rad=8.5+Math.random()*3;mx.makeTranslation(Math.cos(a)*rad,.3+Math.random()*.7,Math.sin(a)*rad);cr.setMatrixAt(i,mx);cr.setColorAt(i,col.setHSL(Math.random(),.25,.12+Math.random()*.1))}
+  S.add(cr);
+  this.rigs=[];this.setFighters(P,[C]);
+  this.fx=[];this.cs=0;this.bt=0;this.resize();addEventListener('resize',()=>this.resize())}
+ setFighters(me,others){for(const r of this.rigs)r.dispose(this.s);this.P=me;
+  const pal=[[0xe0b090,0x2f6fe0,0xe8b04a,0x2a1c10],[0xb98060,0xd8332a,0x22262e,0x15110e],[0xd2a07a,0x2fae5a,0xf2f2f2,0x1a1a1a],[0x9a6a4c,0xb266e8,0x111111,0x0e0e0e]];
+  this.rigs=[new Rig(this.s,me,true,...pal[me.slot||0])];others.forEach(o=>this.rigs.push(new Rig(this.s,o,false,...pal[o.slot==null?1:o.slot])))}
+ resize(){const w=innerWidth,h=innerHeight;this.r.setSize(w,h,false);this.cam.aspect=w/h;this.cam.updateProjectionMatrix()}
+ spark(p,guard){const m=new THREE.Mesh(new THREE.SphereGeometry(.09,10,8),new THREE.MeshBasicMaterial({color:guard?0x9fc4ff:0xffd27a,transparent:true}));m.position.copy(p);this.s.add(m);this.fx.push({m,t:0})}
+ render(dt){const P=this.P,sp=Math.hypot(P.v.x,P.v.z);this.bt+=sp*dt*2.2;
+  const bob=Math.sin(this.bt)*CFG.bob*clamp(sp/CFG.move.speed,0,1),ko=P.hp<=0?Math.min(1,P.koT*1.5):0;this.cs*=Math.exp(-9*dt);
+  const ext=Math.max(P.h.L.ext,P.h.R.ext),tw=(P.h.R.ext-P.h.L.ext)*.5,c=this.cam,e=P.toWorld(new V(0,1.65,0));
+  c.position.set(e.x,e.y+bob-1.2*ko,e.z).addScaledVector(P.fwd(),.05*ext);c.position.x+=(Math.random()-.5)*this.cs;c.position.y+=(Math.random()-.5)*this.cs;
+  c.rotation.set(-.04+P.shake*.05+ko*.7,P.yaw-tw*.05,-P.off.x*.25+ko*.4);
+  for(const r of this.rigs)r.sync(dt);
+  for(let i=this.fx.length-1;i>=0;i--){const e2=this.fx[i];e2.t+=dt;const u=e2.t/.22;e2.m.scale.setScalar(1+u*2.5);e2.m.material.opacity=1-u;if(u>=1){this.s.remove(e2.m);e2.m.geometry.dispose();e2.m.material.dispose();this.fx.splice(i,1)}}
+  this.r.render(this.s,c)}
+}
+
+/* ============ 試合進行 ============ */
+const idleFor=(f,o)=>({mx:0,mz:0,punch:{},guard:0,sway:0,duck:false,face:Math.atan2(-(o.p.x-f.p.x),-(o.p.z-f.p.z))});
+class Game{
+ constructor(){this.P=new Fighter(true);this.C=new Fighter(false);this.P.id='p';this.C.id='c';this.inp=new Input();this.state='menu';this.acc=0;this.last=performance.now();this.t=0;this.timer=CFG.roundTime;
+  this.score={p:0,c:0};this.round=1;this.sel=0;this.offs=[];this.lastW=null;this.ai=new AI('combo');
+  this.v=new View($('c'),this.P,this.C);this.bind();this.hud();requestAnimationFrame(t=>this.frame(t))}
+ newMatch(){this.P.newMatch();this.C.newMatch();const k=Object.keys(STY);this.ai=new AI(k[Math.floor(Math.random()*k.length)]);
+  $('cn').textContent='CPU（'+this.ai.S.n+'）';this.score={p:0,c:0};this.round=1;$('log').innerHTML='';
+  $('menu').classList.add('off');$('over').classList.add('off');$('evo').classList.add('off');UI.chips(this.P,$('pc'));UI.chips(this.C,$('cc'));this.beginRound()}
+ beginRound(){this.P.newPoint(0,2.4,0);this.C.newPoint(0,-1.6,Math.PI);this.ai.reset();this.inp.clear();this.timer=CFG.roundTime;
+  this.state='ready';this.t=1.8;this.fought=false;UI.banner('ROUND '+this.round,900);this.hud()}
+ bind(){
+  addEventListener('keydown',e=>{
+   if(e.target&&e.target.tagName==='INPUT')return;if(['Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Tab'].includes(e.code))e.preventDefault();
+   if(this.state==='fight')this.inp.down(e);else if(this.state==='evolve')this.evoKey(e)});
+  addEventListener('keyup',e=>this.inp.up(e));
+  addEventListener('blur',()=>this.inp.clear());document.addEventListener('visibilitychange',()=>this.inp.clear());
+  $('bcpu').onclick=()=>this.newMatch();$('bre').onclick=()=>this.newMatch();
+  $('cards').addEventListener('click',e=>{const c=e.target.closest('.cd');if(c)this.choose(+c.dataset.i)})}
+ fav(){const s=this.P.stat,sc={off:s.punch/10,def:s.guard/4,dodge:s.dodge/3},m=Math.max(sc.off,sc.def,sc.dodge);
+  return m>0?Object.keys(sc).find(k=>sc[k]===m):null}
+ openEvolve(){this.state='evolve';this.sel=0;this.offs=offer(this.P.picks,this.fav());
+  $('evt').textContent=`進化を選択（${this.score.p} - ${this.score.c}）`;UI.cards(this.offs,this.P.picks,this.P.M,0);$('evo').classList.remove('off')}
+ evoKey(e){const k=e.code;if(k==='Digit1'||k==='Numpad1')this.choose(0);else if(k==='Digit2'||k==='Numpad2')this.choose(1);else if(k==='Digit3'||k==='Numpad3')this.choose(2);
+  else if(k==='KeyA'||k==='ArrowLeft'){this.sel=(this.sel+this.offs.length-1)%this.offs.length;UI.cards(this.offs,this.P.picks,this.P.M,this.sel)}
+  else if(k==='KeyD'||k==='ArrowRight'){this.sel=(this.sel+1)%this.offs.length;UI.cards(this.offs,this.P.picks,this.P.M,this.sel)}
+  else if(k==='Enter'||k==='Space')this.choose(this.sel)}
+ synSet(f){return new Set(SYN.filter(s=>f.M.f[s.id]).map(s=>s.id))}
+ choose(i){if(this.state!=='evolve'||!this.offs[i])return;this.state='ready';   // 二重処理防止
+  const o=this.offs[i],before=this.synSet(this.P);this.P.picks.push(o);this.P.setPicks();
+  const a=this.cpuEvolve();$('evo').classList.add('off');UI.chips(this.P,$('pc'));UI.chips(this.C,$('cc'));SFX.p(520,.12,'triangle');
+  const syn=SYN.find(s=>this.P.M.f[s.id]&&!before.has(s.id));this.round++;this.beginRound();
+  if(syn)setTimeout(()=>UI.toast(`シナジー発動：${syn.n} — ${syn.d}`,2600),700);
+  else setTimeout(()=>UI.toast(`CPUが「${ABM[a.id].n}」(${RN[a.r]})を獲得`,1800),700)}
+ cpuEvolve(){const offs=offer(this.C.picks,null),pref=this.ai.S.pref;
+  let best=null,bs=-1;for(const o of offs){const s=(pref.includes(o.id)?3:0)+o.r*.6+Math.random()*2.5;if(s>bs){bs=s;best=o}}
+  this.C.picks.push(best);this.C.setPicks();return best}
+ step(dt){const P=this.P,C=this.C,s=this.state;
+  if(s==='fight'){const ip=this.inp.intent();ip.face=idleFor(P,C).face;const ic=this.ai.think(C,P,dt);
+   P.upd(dt,ip,C);C.upd(dt,ic,P);this.detect(P,C,true);this.detect(C,P,false);
+   this.timer-=dt;if(P.hp<=0||C.hp<=0)this.endPoint(C.hp<=0&&P.hp>0?'p':P.hp<=0&&C.hp>0?'c':(P.hp/P.hpMax>=C.hp/C.hpMax?'p':'c'));
+   else if(this.timer<=0){const a=P.hp/P.hpMax,b=C.hp/C.hpMax;this.endPoint(Math.abs(a-b)<.005?'tie':a>b?'p':'c')}}
+  else if(s==='ready'||s==='pointEnd'){P.upd(dt,idleFor(P,C),C);C.upd(dt,idleFor(C,P),P);this.t-=dt;
+   if(s==='ready'&&this.t<.6&&!this.fought){this.fought=true;UI.banner('FIGHT!',700,'var(--gold)')}
+   if(this.t<=0){if(s==='ready'){this.state='fight'}else this.afterPoint()}}}
+ endPoint(w){if(this.state!=='fight')return;this.state='pointEnd';this.t=1.9;this.lastW=w;this.inp.clear();
+  if(w==='p')this.score.p++;else if(w==='c')this.score.c++;
+  UI.banner(w==='p'?'POINT — YOU':w==='c'?'POINT — CPU':'DRAW',1500,w==='p'?'var(--gold)':w==='c'?'var(--red)':'#fff');this.hud()}
+ afterPoint(){const S=this.score,N=CFG.pointsToWin;
+  if(S.p>=N||S.c>=N){this.state='end';$('res').textContent=S.p>=N?'YOU WIN':'YOU LOSE';$('res').style.color=S.p>=N?'var(--gold)':'var(--red)';
+   $('rs').textContent=`${S.p} - ${S.c}。進化能力はリセットされます。`;$('over').classList.remove('off')}
+  else if(this.lastW==='tie')this.beginRound();else this.openEvolve()}
+ detect(att,tgt,byP){const ev=[];combat(att,[tgt],STEP,ev);for(const e of ev)this.onEv(e)}   // 判定ロジックは game-core.js の combat()
+ onEv(e){const byP=e.att===this.P.id;
+  if(e.type==='dodge'){if(e.id===this.P.id){UI.toast('回避！');SFX.p(620,.07,'sine')}return}
+  this.v.spark(new V(e.np[0],e.np[1],e.np[2]),e.blocked);SFX.p(e.blocked?300:110,e.blocked?.08:.13,e.blocked?'triangle':'sawtooth');
+  UI.logHit({byPlayer:byP,blocked:e.blocked,zone:e.zone,punch:e.punch,speed:e.speed,dmg:e.dmg,tags:e.tags});
+  if(byP){const c=$('cross');c.classList.add('hit');setTimeout(()=>c.classList.remove('hit'),120)}
+  else{this.v.cs=e.blocked?.015:.05;if(!e.blocked){const f=$('flash');f.style.opacity=1;setTimeout(()=>f.style.opacity=0,90)}}}
+ hud(){const P=this.P,C=this.C;$('mh').style.width=P.hp/P.hpMax*100+'%';$('ms').style.width=P.st/P.stMax()*100+'%';
+  $('ch').style.width=C.hp/C.hpMax*100+'%';$('cs2').style.width=C.st/C.stMax()*100+'%';
+  $('sc').textContent=this.score.p+' - '+this.score.c;$('tm').textContent=Math.max(0,Math.ceil(this.timer))}
+ frame(now){const dt=Math.min((now-this.last)/1000,.05);this.last=now;if(window.online&&window.online.active){window.online.frame(dt);requestAnimationFrame(t=>this.frame(t));return}this.acc+=dt;
+  while(this.acc>=STEP){this.step(STEP);this.acc-=STEP}
+  this.hud();this.v.render(dt);requestAnimationFrame(t=>this.frame(t))}
+}
+/* ============ ONLINE（フェーズ1：DUEL。サーバー権威型） ============
+   ・入力だけを送り、状態はサーバーのスナップショットを補間して表示します。
+   ・NET の数値は初期設定です。URLに ?inputHz=45&interp=150 を付けて試せます。 */
+const NET={
+ server:'wss://YOUR-APP-NAME.onrender.com',   // ★ここにRenderのURLを設定（https:// ではなく wss:// で始める）
+ inputHz:30,          // 入力送信頻度（10〜60）
+ interpMs:100,        // 補間遅延。サーバーのstateHzから自動で下限を決める（20Hzなら100ms）
+ wakeTimeoutMs:100000,// Render無料枠の起動待ちの上限
+ wakeIntervalMs:3500,
+ reconnectMax:8};
+(function(){const q=new URLSearchParams(location.search);
+ const s=q.get('server');if(s&&/^wss?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(s))NET.server=s.replace(/\/$/,'');   // 外部URLの上書きは不可（なりすまし防止）
+ if(q.get('inputHz'))NET.inputHz=clamp(+q.get('inputHz')||30,10,60);
+ if(q.get('interp'))NET.interpMs=clamp(+q.get('interp')||100,0,400)})();
+const SLOTC=['#2f6fe0','#d8332a','#2fae5a','#b266e8'];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const mk=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e};
+const cleanName=s=>String(s||'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,12);
+
+class Online{
+ constructor(g){
+  Object.assign(this,{g,active:false,ws:null,id:null,room:null,inRoom:false,snaps:[],evq:[],fx:{},order:[],me:null,skew:null,interp:NET.interpMs,
+   sendAcc:0,seq:0,abort:false,sess:null,rc:0,live:false,curPhase:'',offs:null,sel:0,picked:false,bub:{},lastChat:0,pend:null,unread:0,
+   tgId:null,curM:null,intentClose:false,hb:null,rtt:0,opened:false});
+  try{this.sess=JSON.parse(sessionStorage.getItem('rf_sess')||'null')}catch(e){}
+  this.bind()}
+ /* ---------- 画面表示 ---------- */
+ msg(t){$('onmsg').textContent=t||''}
+ stat(t){const s=$('onstat');s.textContent=t||'';s.classList.toggle('on',!!t)}
+ status(t){$('onl').classList.contains('off')?this.stat(t):this.msg(t)}
+ show(id,on){$(id).classList.toggle('off',!on)}
+ open(){this.active=true;this.g.state='online';this.show('menu',false);this.show('onl',true);
+  $('onname').value=localStorage.getItem('rf_name')||('PLAYER'+Math.floor(Math.random()*90+10));
+  $('onrejoin').style.display=this.sess?'':'none';this.msg('')}
+ close(){this.abort=true;this.intentClose=true;try{this.ws&&this.ws.close()}catch(e){}this.ws=null;this.stat('');
+  this.leaveUI();this.show('onl',false);this.active=false;this.g.state='menu';this.show('menu',true)}
+ leaveUI(){this.me=null;this.order=[];this.fx={};this.live=false;this.offs=null;this.inRoom=false;this.room=null;
+  ['lobby','onres','evo'].forEach(i=>this.show(i,false));this.show('chat',false);$('ping').textContent='';
+  this.g.v.setFighters(this.g.P,[this.g.C]);for(const id in this.bub){this.bub[id].el.remove()}this.bub={}}
+ fail(t){this.stat('');this.ws=null;this.sess=null;sessionStorage.removeItem('rf_sess');this.leaveUI();this.show('onl',true);this.msg(t)}
+ bind(){const B=(id,f)=>{$(id).onclick=f};
+  B('bonl',()=>this.open());B('oncreate',()=>this.go({t:'create'}));
+  B('onjoin',()=>{const c=$('oncode').value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(c))return this.msg('6桁のルームコード（英数字）を入力してください。');this.go({t:'join',code:c})});
+  B('onrejoin',()=>this.sess&&this.go({t:'rejoin',code:this.sess.code,token:this.sess.token}));
+  B('onback',()=>this.close());B('lcopy',()=>this.copy());
+  B('lready',()=>{const me=this.room&&this.room.players.find(p=>p.id===this.id);this.send({t:'ready',v:!(me&&me.ready)})});
+  B('lstart',()=>this.send({t:'start'}));
+  B('lleave',()=>{this.send({t:'leave'});this.sess=null;sessionStorage.removeItem('rf_sess');this.leaveUI();this.show('onl',true);$('onrejoin').style.display='none'});
+  B('onlb',()=>{this.show('onres',false);this.me=null;this.order=[];this.fx={};this.g.v.setFighters(this.g.P,[this.g.C]);this.show('lobby',true);this.renderLobby()});
+  B('ctog',()=>{$('chat').classList.toggle('min');this.unread=0;$('ctog').textContent='–'});
+  $('oncode').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
+  $('cin').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;   // 日本語変換の確定Enterでは送信しない
+   if(e.key==='Enter'){e.preventDefault();this.sendChat();$('cin').blur()}else if(e.key==='Escape')$('cin').blur()});
+  $('cards').addEventListener('click',e=>{if(!this.active||!this.offs)return;const c=e.target.closest('.cd');if(c)this.choose(+c.dataset.i)});
+  addEventListener('keydown',e=>{if(!this.active)return;const typing=e.target&&e.target.tagName==='INPUT';
+   if(e.code==='Enter'&&!typing&&!$('chat').classList.contains('off')){e.preventDefault();$('chat').classList.remove('min');this.g.inp.clear();$('cin').focus();return}
+   if(typing)return;
+   if(this.offs&&!$('evo').classList.contains('off')){if(!this.picked)this.evoKey(e);return}
+   if(this.me&&!e.repeat){if(e.code==='Tab')this.send({t:'tgt'});this.g.inp.down(e)}})}
+ /* ---------- 接続（Render無料枠の起動待ちを含む） ---------- */
+ send(m){if(this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(m))}
+ async go(m){this.abort=false;this.intentClose=false;this.msg('');
+  if(m.t!=='rejoin'){m.name=cleanName($('onname').value)||'PLAYER';localStorage.setItem('rf_name',m.name)}
+  if(this.ws&&this.ws.readyState===1){this.send(m);return}
+  if(!/^wss?:\/\//.test(NET.server)||NET.server.includes('YOUR-APP')){
+   this.msg('サーバーURLが未設定です。\nindex.html 先頭付近の NET.server に、Renderで発行されたURL（wss://〜）を設定してください。\n（手順は README.md を参照）');return}
+  this.pend=m;const ok=await this.wake(NET.wakeTimeoutMs);if(this.abort)return;
+  if(!ok){this.pend=null;this.msg('サーバーに接続できませんでした。\n・Render無料枠は停止中の起動に最大1分ほどかかります。少し待ってから、もう一度お試しください。\n・NET.server のURLが正しいか確認してください。\n・サーバーの ALLOWED_ORIGINS に、このページのURLが含まれているか確認してください。');return}
+  this.openWs()}
+ async wake(timeout){const t0=Date.now(),url=NET.server.replace(/^ws/,'http').replace(/\/$/,'')+'/health';let n=0;
+  while(Date.now()-t0<timeout&&!this.abort){n++;const s=Math.round((Date.now()-t0)/1000);
+   this.status(n===1?'サーバーに接続中…':`サーバーを起動しています…（${s}秒）\nRender無料枠は、しばらく使われないと停止します。\n起動には最大1分ほどかかるので、このままお待ちください。`);
+   try{const c=new AbortController(),to=setTimeout(()=>c.abort(),6000),r=await fetch(url,{signal:c.signal,cache:'no-store'});clearTimeout(to);if(r.ok){this.status('');return true}}catch(e){}
+   await sleep(NET.wakeIntervalMs)}
+  this.status('');return false}
+ openWs(){this.status('ルームに接続しています…');this.opened=false;const ws=this.ws=new WebSocket(NET.server);
+  ws.onopen=()=>{this.opened=true;this.rc=0;this.stat('');
+   if(this.pend){this.send(this.pend);this.pend=null}else if(this.sess)this.send({t:'rejoin',code:this.sess.code,token:this.sess.token});
+   clearInterval(this.hb);this.hb=setInterval(()=>this.send({t:'ping',ts:performance.now()}),4000)};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(x){return}this.on(m)};
+  ws.onclose=()=>{clearInterval(this.hb);if(this.ws!==ws)return;this.ws=null;
+   if(!this.opened&&!this.sess){this.status('');this.msg('サーバーに接続できませんでした。\nサーバーの ALLOWED_ORIGINS（許可するURL）の設定を確認してください。');return}
+   this.lost()};
+  ws.onerror=()=>{}}
+ lost(){if(this.intentClose){this.intentClose=false;return}
+  if(this.sess&&this.active&&this.rc<NET.reconnectMax){const n=++this.rc;this.live=false;
+   this.stat(`接続が切れました。再接続しています…（${n}/${NET.reconnectMax}）\n試合中の場合、約30秒以内なら復帰できます。`);
+   setTimeout(async()=>{if(!this.active||this.ws)return;const ok=await this.wake(15000);if(!this.active)return;ok?this.openWs():this.lost()},Math.min(n,4)*1000)}
+  else this.fail('サーバーとの接続が切れ、ルームに復帰できませんでした。')}
+ /* ---------- 受信 ---------- */
+ on(m){
+  switch(m.t){
+  case'pong':this.rtt=performance.now()-m.ts;$('ping').textContent=Math.round(this.rtt)+' ms';break;
+  case'joined':this.id=m.id;this.sess={code:m.code,token:m.token};sessionStorage.setItem('rf_sess',JSON.stringify(this.sess));
+   if(m.cfg&&m.cfg.stateHz)this.interp=Math.max(NET.interpMs,Math.round(2000/m.cfg.stateHz));
+   this.inRoom=true;this.show('onl',false);this.stat('');this.show('chat',true);$('clog').textContent='';break;
+  case'room':this.room=m;this.renderLobby();if(!this.me&&$('onres').classList.contains('off')&&this.inRoom)this.show('lobby',true);break;
+  case'err':if(m.c==='no_session'){this.fail('前回のルームには復帰できませんでした（終了済みか、時間切れです）。')}
+   else{if(!$('lobby').classList.contains('off'))$('lmsg').textContent=m.m;else this.msg(m.m);UI.toast(m.m,2200)}break;
+  case'start':this.startMatch(m);break;
+  case'snap':{const f={};for(const s of m.f)f[s.id]=s;this.snaps.push({ts:m.ts,m:m.m,f});if(this.snaps.length>60)this.snaps.shift();
+   const d=Date.now()-m.ts;this.skew=this.skew==null?d:(d<this.skew?d:this.skew+(d-this.skew)*.02);   // 最小遅延に素早く追従
+   const l=m.m.s==='fight';if(l&&!this.live)this.g.inp.intent();this.live=l;break}
+  case'ev':this.evq.push({ts:m.ts,e:m.e});break;
+  case'offers':this.offs=m.o;this.sel=0;this.picked=false;this.live=false;this.g.inp.clear();
+   $('evt').textContent='進化を選択';$('evh').textContent='1 / 2 / 3 で選択、A / D で移動、Enter で決定（制限時間 約25秒）';
+   if(this.me)this.cards();this.show('evo',true);break;
+  case'picks':for(const id in m.picks){const f=this.fx[id];if(f){f.picks=m.picks[id];f.setPicks()}}
+   this.offs=null;this.show('evo',false);this.chips();
+   for(const id in (m.ns||{})){const f=this.fx[id];for(const n of m.ns[id])UI.toast(id===this.id?`シナジー発動：${n}`:`${f?f.name:'?'}がシナジー「${n}」を発動`,2600)}break;
+  case'chat':this.addChat(m);break;
+  case'end':this.endMatch(m);break}}
+ startMatch(m){this.fx={};this.order=[];this.snaps=[];this.evq=[];this.skew=null;this.curPhase='';this.live=false;this.offs=null;
+  for(const p of m.fs){const f=new Fighter(false);f.id=p.id;f.name=p.name;f.slot=p.slot;f.picks=(m.picks&&m.picks[p.id])||[];f.setPicks();this.fx[p.id]=f;this.order.push(f)}
+  this.me=this.fx[this.id];if(!this.me)return;
+  this.g.v.setFighters(this.me,this.order.filter(f=>f!==this.me));this.g.state='online';this.g.inp.clear();
+  ['lobby','onres','evo'].forEach(i=>this.show(i,false));$('log').innerHTML='';this.show('chat',true);this.chips()}
+ endMatch(m){this.live=false;this.offs=null;this.show('evo',false);
+  const win=m.winner===this.id,nm=m.winner&&m.names&&m.names[m.winner];
+  $('onrt').textContent=m.winner?(win?'YOU WIN':'YOU LOSE'):'DRAW';$('onrt').style.color=win?'var(--gold)':'var(--red)';
+  const sc=Object.keys(m.score||{}).map(id=>`${(m.names&&m.names[id])||'?'} ${m.score[id]}`).join('　');
+  $('onrs').textContent=(m.reason==='forfeit'?'相手が退出したため、不戦勝です。':m.reason==='error'?'サーバーエラーのため試合を終了しました。':m.winner?`${nm||'?'} の勝利。`:'引き分け。')+'　'+sc;
+  this.show('onres',true)}
+ /* ---------- ロビー ---------- */
+ copy(){const c=this.room&&this.room.code;if(!c)return;const done=()=>UI.toast('ルームコードをコピーしました',1200);
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(c).then(done,()=>this.copyFb(c,done));else this.copyFb(c,done)}
+ copyFb(c,done){const t=mk('textarea');t.value=c;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();try{document.execCommand('copy');done()}catch(e){}t.remove()}
+ renderLobby(){const r=this.room;if(!r)return;$('lcode').textContent=r.code;const S=$('slots');S.textContent='';
+  for(let i=0;i<4;i++){const p=r.players.find(x=>x.slot===i),row=mk('div','slot'+(p?'':' empty')),sw=mk('i','sw');sw.style.background=SLOTC[i];row.appendChild(sw);
+   if(p){row.appendChild(mk('span','pn',p.name+(p.id===this.id?'（あなた）':'')));
+    row.appendChild(mk('span','tag'+(!p.connected?' bad':p.ready?' ok':''),!p.connected?'切断中':p.host?'HOST':p.ready?'READY':'準備中'))}
+   else row.appendChild(mk('span','pn','参加待ち…'));S.appendChild(row)}
+  const host=r.hostId===this.id,L=$('lmode');L.textContent='';
+  for(const [k,n,en] of[['duel','DUEL（1対1）',true],['brawl','BRAWL（最大4人）',r.brawl]]){const b=mk('button',r.mode===k?'on':'',en?n:n+'　PHASE 2');b.disabled=!host||!en;b.onclick=()=>this.send({t:'mode',mode:k});L.appendChild(b)}
+  const act=r.players.filter(p=>p.connected),others=r.players.filter(p=>p.id!==r.hostId);
+  const okN=r.mode==='duel'?r.players.length===2:r.players.length>=2,okR=others.every(p=>p.ready&&p.connected);
+  $('lready').style.display=host?'none':'';const me=r.players.find(p=>p.id===this.id);$('lready').textContent=me&&me.ready?'準備解除':'準備完了';
+  $('lstart').style.display=host?'':'none';$('lstart').disabled=!(okN&&okR);
+  $('lmsg').textContent=host?(!okN?(r.mode==='duel'?'対戦相手の参加を待っています（DUELは2人）':'あと1人以上必要です'):!okR?'全員の準備完了を待っています':'START で試合開始'):'ホストの開始を待っています';
+  void act}
+ /* ---------- 進化 ---------- */
+ cards(){UI.cards(this.offs,this.me.picks,this.me.M,this.sel)}
+ evoKey(e){const n=this.offs.length,k=e.code;let pick=-1;
+  if(/^(Digit|Numpad)[1-3]$/.test(k))pick=+k.slice(-1)-1;
+  else if(k==='KeyA'||k==='ArrowLeft'){this.sel=(this.sel+n-1)%n;this.cards()}
+  else if(k==='KeyD'||k==='ArrowRight'){this.sel=(this.sel+1)%n;this.cards()}
+  else if(k==='Enter'||k==='Space')pick=this.sel;
+  if(pick>=0&&pick<n)this.choose(pick)}
+ choose(i){if(!this.offs||this.picked||!this.offs[i])return;this.picked=true;this.send({t:'pick',i});$('evh').textContent='選択しました。他のプレイヤーを待っています…';SFX.p(520,.12,'triangle')}
+ chips(){if(!this.me)return;const o=this.order.find(f=>f!==this.me)||this.me;UI.chips(this.me,$('pc'));UI.chips(o,$('cc'))}
+ /* ---------- チャット（ログと吹き出しは同じメッセージから生成） ---------- */
+ sendChat(){const t=$('cin').value.trim().slice(0,80);if(!t)return;const n=performance.now();if(n-this.lastChat<700)return;this.lastChat=n;this.send({t:'chat',text:t});$('cin').value=''}
+ addChat(m){const log=$('clog'),near=log.scrollTop+log.clientHeight>=log.scrollHeight-30,row=mk('div',m.id==='sys'?'sys':'');
+  if(m.id!=='sys'){const b=mk('b','',m.name);b.style.color=SLOTC[m.slot||0];row.appendChild(b)}row.appendChild(mk('span','',m.text));log.appendChild(row);
+  while(log.children.length>100)log.removeChild(log.firstChild);if(near)log.scrollTop=log.scrollHeight;
+  if($('chat').classList.contains('min')){this.unread++;$('ctog').textContent='+'+this.unread}
+  if(m.id!=='sys'){const old=this.bub[m.id];if(old)old.el.remove();const el=mk('div','bub'+(m.id===this.id?' self':''),m.text);$('bubbles').appendChild(el);this.bub[m.id]={el,until:performance.now()+5000}}}
+ bubbles(){const now=performance.now(),cam=this.g.v.cam;
+  for(const id in this.bub){const b=this.bub[id];if(now>b.until){b.el.remove();delete this.bub[id];continue}
+   if(id===this.id)continue;const f=this.fx[id];if(!f||!this.me){b.el.style.display='none';continue}
+   const v=new THREE.Vector3(f.p.x+f.off.x,2.0+f.off.y,f.p.z).project(cam);
+   if(v.z>1||Math.abs(v.x)>1.05||Math.abs(v.y)>1.05){b.el.style.display='none';continue}
+   b.el.style.display='';b.el.style.left=(v.x*.5+.5)*innerWidth+'px';b.el.style.top=(-v.y*.5+.5)*innerHeight+'px'}}
+ /* ---------- 毎フレーム：補間表示・入力送信 ---------- */
+ frame(dt){
+  if(this.me&&this.snaps.length){const rt=Date.now()-(this.skew||0)-this.interp;this.applyAt(rt);this.runEvents(rt);this.hud()}
+  if(this.me&&this.live){this.sendAcc+=dt;const iv=1/NET.inputHz;if(this.sendAcc>=iv){this.sendAcc%=iv;this.sendInput()}}
+  this.g.v.render(dt);this.bubbles()}
+ applyAt(rt){const S=this.snaps;let i=S.length-1;while(i>0&&S[i].ts>rt)i--;const a=S[i],b=S[i+1]||a,
+   t=b===a?1:clamp((rt-a.ts)/Math.max(1,b.ts-a.ts),0,1);
+  for(const f of this.order){const sa=a.f[f.id],sb=b.f[f.id];if(!sa||!sb)continue;f.applySnap(b===a?sb:lerpSnap(sa,sb,t))}
+  const sm=b.f[this.id];this.tgId=sm?sm.tg:null;this.curM=t<.5?a.m:b.m;this.phaseUI(this.curM)}
+ phaseUI(m){if(m.s===this.curPhase)return;this.curPhase=m.s;
+  if(m.s==='ready')UI.banner('ROUND '+m.r,900);else if(m.s==='fight')UI.banner('FIGHT!',700,'var(--gold)');
+  else if(m.s==='pointEnd'){const w=this.fx[m.w];UI.banner(m.w?(m.w===this.id?'POINT — YOU':'POINT — '+(w?w.name:'?')):'DRAW',1500,m.w===this.id?'var(--gold)':'var(--red)')}}
+ runEvents(rt){while(this.evq.length&&this.evq[0].ts<=rt){for(const x of this.evq.shift().e)this.ev(x)}}
+ ev(x){const g=this.g;
+  if(x.type==='dodge'){if(x.id===this.id){UI.toast('回避！');SFX.p(620,.07,'sine')}return}
+  g.v.spark(new V(x.np[0],x.np[1],x.np[2]),x.blocked);SFX.p(x.blocked?300:110,x.blocked?.08:.13,x.blocked?'triangle':'sawtooth');
+  if(x.att===this.id||x.tgt===this.id){UI.logHit({byPlayer:x.att===this.id,blocked:x.blocked,zone:x.zone,punch:x.punch,speed:x.speed,dmg:x.dmg,tags:x.tags});
+   if(x.att===this.id){const c=$('cross');c.classList.add('hit');setTimeout(()=>c.classList.remove('hit'),120)}
+   else{g.v.cs=x.blocked?.015:.05;if(!x.blocked){const f=$('flash');f.style.opacity=1;setTimeout(()=>f.style.opacity=0,90)}}}}
+ sendInput(){const I=this.g.inp.intent();
+  this.send({t:'in',s:++this.seq,mx:I.mx,mz:I.mz,g:I.guard,p:[I.punch.L,I.punch.R],d:I.dash?[I.dash.x,I.dash.z]:0,sw:I.sway,dk:I.duck?1:0})}
+ hud(){const me=this.me,o=this.fx[this.tgId]||this.order.find(f=>f!==me)||me,m=this.curM||{sc:{},tm:0};
+  $('mh').style.width=me.hp/me.hpMax*100+'%';$('ms').style.width=me.st/me.stMax()*100+'%';
+  $('ch').style.width=o.hp/o.hpMax*100+'%';$('cs2').style.width=o.st/o.stMax()*100+'%';$('cn').textContent=o.name||'RIVAL';
+  $('sc').textContent=((m.sc||{})[me.id]||0)+' - '+((m.sc||{})[o.id]||0);$('tm').textContent=Math.max(0,Math.ceil(m.tm))}
+}
+
+try{if(!window.THREE)throw new Error('Three.jsを読み込めませんでした');window.game=new Game();window.online=new Online(window.game)}
+catch(e){document.body.insertAdjacentHTML('beforeend','<div class="ov"><div class="card"><h1>エラー</h1><p>'+e.message+'</p></div></div>')}
+</script></body></html>

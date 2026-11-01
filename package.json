@@ -1,0 +1,12 @@
+{
+  "name": "ring-first-server",
+  "version": "1.0.0",
+  "description": "RING FIRST online battle server (authoritative WebSocket)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/cpu-core.test.js && node test/server-sim.test.js && node test/client-smoke.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" }
+}

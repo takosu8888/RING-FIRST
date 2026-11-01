@@ -1,0 +1,17 @@
+# Render の「Blueprint」用設定（無料枠）。README の手順 3 を参照
+services:
+  - type: web
+    name: ring-first-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        # ★GitHub PagesのURL（例：https://yourname.github.io）に書き換える。複数ある場合はカンマ区切り
+        value: https://YOUR-NAME.github.io
+      - key: STATE_HZ
+        value: "20"
+      - key: SIM_HZ
+        value: "60"
