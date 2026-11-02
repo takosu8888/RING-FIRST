@@ -85,12 +85,24 @@ input:focus-visible{outline:2px solid var(--gold)}
 #chat.min #clog,#chat.min #cin{display:none}
 #clog b{margin-right:6px}#clog .sys{opacity:.6;font-style:italic}
 #cin{margin:0;width:100%;font-size:13px;letter-spacing:0;border-width:1px 0 0}
+
+/* ---- BRAWL（4人乱闘）---- */
+#sider.off,#roster.off,#tgtlbl.off{display:none}
+#roster{width:min(30vw,250px)}.rrow{margin-bottom:6px}
+.rtop{display:flex;align-items:center;gap:6px;justify-content:flex-end;font-size:12px;font-weight:800}
+.rrow .sw{width:10px;height:10px}.rrow i.hp{height:9px}.rrow i.hp b{background:var(--red)}.rrow i.st{height:4px;margin-top:2px}.rrow i.st b{background:#e6cf5a}
+.rpk{font-size:10.5px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}.rrow.ko{opacity:.35}
+#tgtlbl{position:fixed;left:50%;top:calc(50% + 22px);transform:translateX(-50%);font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--gold);text-shadow:0 1px 6px #000;pointer-events:none;white-space:nowrap}
+.np{position:absolute;transform:translate(-50%,-100%);text-align:center;font-size:12px;font-weight:800;text-shadow:0 1px 4px #000;white-space:nowrap}
+.np.tg{color:var(--gold)}.np.ko{opacity:.35}
+.np .nb{display:block;width:54px;height:5px;margin:2px auto 0;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3)}
+.np .nb b{display:block;height:100%;background:var(--red);transition:none}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="top">
  <div class="side"><div class="nm">YOU</div><i class="hp"><b id="mh"></b></i><i class="st"><b id="ms"></b></i><div class="chips" id="pc"></div></div>
  <div id="mid"><div id="sc">0 - 0</div><div id="tm">60</div></div>
- <div class="side r"><div class="nm" id="cn">CPU</div><i class="hp"><b id="ch"></b></i><i class="st"><b id="cs2"></b></i><div class="chips" id="cc"></div></div>
+ <div class="side r" id="sider"><div class="nm" id="cn">CPU</div><i class="hp"><b id="ch"></b></i><i class="st"><b id="cs2"></b></i><div class="chips" id="cc"></div></div><div class="side r off" id="roster"></div>
 </div>
 <div id="cross"></div><div id="flash"></div><div id="banner"></div><div id="toast"></div>
 <div id="log"></div>
@@ -98,7 +110,7 @@ input:focus-visible{outline:2px solid var(--gold)}
 <div id="menu" class="ov"><div class="card">
 <h1>RING FIRST</h1><p class="sub">3ポイント先取。ポイントごとに進化して、自分だけのビルドで戦う。</p>
 <button id="bcpu">CPU対戦を始める</button>
-<button id="bonl" class="alt">ONLINE BATTLE（フェーズ1：1対1 DUEL）</button>
+<button id="bonl" class="alt">ONLINE BATTLE（1対1 DUEL ／ 最大4人 BRAWL）</button>
 <p class="note">オンライン対戦には専用サーバー（README参照）が必要です。CPU戦はサーバー無しでそのまま遊べます。</p>
 <div class="keys">操作はすべてキーボードだけ。カメラは相手を滑らかに追従します。<br>J：なし=ジャブ W=アッパー A=フック S=逆フック D=ボディ<br>K：なし=ストレート W=アッパー A=ボディフック S=フック D=ボディ<br>同時押しの優先順位：W ＞ S ＞ A ＞ D<br>進化の選択：1／2／3、または A／D で選んで Enter</div>
 </div></div>
@@ -106,7 +118,7 @@ input:focus-visible{outline:2px solid var(--gold)}
 <div id="over" class="ov off"><div class="card"><p id="res"></p><p class="sub" id="rs"></p><button id="bre">新しい試合を始める</button></div></div>
 
 <div id="onl" class="ov off"><div class="card">
-<h1 style="font-size:clamp(28px,6vw,40px)">ONLINE BATTLE</h1><p class="sub">ルームコードで友達と対戦（フェーズ1：1対1 DUEL）</p>
+<h1 style="font-size:clamp(28px,6vw,40px)">ONLINE BATTLE</h1><p class="sub">ルームコードで友達と対戦（1対1 DUEL ／ 最大4人 BRAWL）</p>
 <label class="fl">プレイヤー名<input id="onname" maxlength="12" autocomplete="off"></label>
 <button id="oncreate">CREATE ROOM</button>
 <div class="row"><input id="oncode" maxlength="6" placeholder="ROOM CODE" autocomplete="off" aria-label="ルームコード"><button id="onjoin" class="inl">JOIN ROOM</button></div>
@@ -121,7 +133,7 @@ input:focus-visible{outline:2px solid var(--gold)}
 <button id="lready">準備完了</button><button id="lstart">START</button><button id="lleave" class="alt">LEAVE</button>
 </div></div>
 <div id="onres" class="ov off"><div class="card"><p id="onrt" style="font-size:42px;font-weight:900;margin:0 0 6px"></p><p class="sub" id="onrs"></p><button id="onlb">ロビーに戻る</button></div></div>
-<div id="onstat" role="status"></div><div id="ping"></div><div id="bubbles"></div>
+<div id="onstat" role="status"></div><div id="ping"></div><div id="bubbles"></div><div id="tgtlbl" class="off"></div>
 <div id="chat" class="off"><div id="chead"><span>CHAT（Enterで入力）</span><button id="ctog" aria-label="チャットの開閉">–</button></div><div id="clog" aria-live="polite"></div><input id="cin" maxlength="80" placeholder="メッセージ…" autocomplete="off"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="game-core.js"></script>
@@ -154,7 +166,7 @@ const UI={
  logHit(ev){const L=$('log');L.querySelectorAll('.full').forEach(e=>e.classList.remove('full'));
   const d=document.createElement('div');d.className='e full'+(ev.byPlayer?'':' c');
   const head=ev.byPlayer?(ev.blocked?'[GUARDED]':'[HIT]'):(ev.blocked?'[被弾/ガード]':'[被弾]');
-  d.innerHTML=`<b>${head}</b><span>部位：${ev.zone}</span><span>パンチ：${ev.punch}</span><span>拳の速度：${ev.speed.toFixed(1)} m/s</span><span>ダメージ：${ev.dmg.toFixed(1)}</span>`+(ev.tags.length?`<span>${ev.tags.join(' ')}</span>`:'');
+  const A=(tag,t)=>{const e=document.createElement(tag);e.textContent=t;d.appendChild(e)};A('b',head);A('span','部位：'+ev.zone);A('span','パンチ：'+ev.punch);A('span','拳の速度：'+ev.speed.toFixed(1)+' m/s');A('span','ダメージ：'+ev.dmg.toFixed(1));if(ev.tags.length)A('span',ev.tags.join(' '));
   L.appendChild(d);while(L.children.length>6)L.removeChild(L.firstChild)},
  banner(t,ms,col){const b=$('banner');b.textContent=t;b.style.color=col||'#fff';b.classList.add('on');clearTimeout(this.bt);this.bt=setTimeout(()=>b.classList.remove('on'),ms||1200)},
  toast(t,ms){const b=$('toast');b.textContent=t;b.classList.add('on');clearTimeout(this.tt);this.tt=setTimeout(()=>b.classList.remove('on'),ms||1400)},
@@ -195,6 +207,7 @@ class Rig{
    gv=add(S(.128,18,14),gl,0,0,0,scene,[1,.95,1.28]);this.arm[k]={up,fo,gv}}}
  dispose(scene){scene.remove(this.g);for(const k in this.arm){const a=this.arm[k];for(const m of[a.up,a.fo,a.gv]){scene.remove(m);m.geometry.dispose()}}
   this.g.traverse(m=>{if(m.geometry)m.geometry.dispose()})}
+ setFP(v){this.fp=v;this.body.visible=!v;this.legs.visible=!v}
  sync(dt){const f=this.f,g=this.g,o=f.off;g.position.set(f.p.x,0,f.p.z);g.rotation.y=f.yaw;
   const ko=f.hp<=0?Math.min(1.45,f.koT*2.8):0;g.rotation.x=ko;
   const dk=-o.y/CFG.duck.drop,tw=(f.h.R.ext-f.h.L.ext)*.5;
@@ -230,16 +243,18 @@ class View{
   S.add(cr);
   this.rigs=[];this.setFighters(P,[C]);
   this.fx=[];this.cs=0;this.bt=0;this.resize();addEventListener('resize',()=>this.resize())}
- setFighters(me,others){for(const r of this.rigs)r.dispose(this.s);this.P=me;
+ setFighters(me,others){for(const r of this.rigs)r.dispose(this.s);this.P=me;this.spec=null;
   const pal=[[0xe0b090,0x2f6fe0,0xe8b04a,0x2a1c10],[0xb98060,0xd8332a,0x22262e,0x15110e],[0xd2a07a,0x2fae5a,0xf2f2f2,0x1a1a1a],[0x9a6a4c,0xb266e8,0x111111,0x0e0e0e]];
   this.rigs=[new Rig(this.s,me,true,...pal[me.slot||0])];others.forEach(o=>this.rigs.push(new Rig(this.s,o,false,...pal[o.slot==null?1:o.slot])))}
+ setSpec(s){this.spec=s;for(const r of this.rigs)r.setFP(s==null?r.f===this.P:s==='orbit'?false:r.f===s)}   // 観戦：null=自分視点 / 'orbit'=俯瞰 / Fighter=その人の視点
  resize(){const w=innerWidth,h=innerHeight;this.r.setSize(w,h,false);this.cam.aspect=w/h;this.cam.updateProjectionMatrix()}
  spark(p,guard){const m=new THREE.Mesh(new THREE.SphereGeometry(.09,10,8),new THREE.MeshBasicMaterial({color:guard?0x9fc4ff:0xffd27a,transparent:true}));m.position.copy(p);this.s.add(m);this.fx.push({m,t:0})}
- render(dt){const P=this.P,sp=Math.hypot(P.v.x,P.v.z);this.bt+=sp*dt*2.2;
+ render(dt){const P=(this.spec&&this.spec!=='orbit')?this.spec:this.P,sp=Math.hypot(P.v.x,P.v.z);this.bt+=sp*dt*2.2;
   const bob=Math.sin(this.bt)*CFG.bob*clamp(sp/CFG.move.speed,0,1),ko=P.hp<=0?Math.min(1,P.koT*1.5):0;this.cs*=Math.exp(-9*dt);
   const ext=Math.max(P.h.L.ext,P.h.R.ext),tw=(P.h.R.ext-P.h.L.ext)*.5,c=this.cam,e=P.toWorld(new V(0,1.65,0));
   c.position.set(e.x,e.y+bob-1.2*ko,e.z).addScaledVector(P.fwd(),.05*ext);c.position.x+=(Math.random()-.5)*this.cs;c.position.y+=(Math.random()-.5)*this.cs;
   c.rotation.set(-.04+P.shake*.05+ko*.7,P.yaw-tw*.05,-P.off.x*.25+ko*.4);
+  if(this.spec==='orbit'){this.ot=(this.ot||0)+dt*.12;c.position.set(Math.sin(this.ot)*7.2,5.2,Math.cos(this.ot)*7.2);c.rotation.set(0,0,0);c.lookAt(0,1,0)}
   for(const r of this.rigs)r.sync(dt);
   for(let i=this.fx.length-1;i>=0;i--){const e2=this.fx[i];e2.t+=dt;const u=e2.t/.22;e2.m.scale.setScalar(1+u*2.5);e2.m.material.opacity=1-u;if(u>=1){this.s.remove(e2.m);e2.m.geometry.dispose();e2.m.material.dispose();this.fx.splice(i,1)}}
   this.r.render(this.s,c)}
@@ -315,7 +330,7 @@ class Game{
    ・入力だけを送り、状態はサーバーのスナップショットを補間して表示します。
    ・NET の数値は初期設定です。URLに ?inputHz=45&interp=150 を付けて試せます。 */
 const NET={
-server:'wss://ring-first.onrender.com',
+ server:'wss://YOUR-APP-NAME.onrender.com',   // ★ここにRenderのURLを設定（https:// ではなく wss:// で始める）
  inputHz:30,          // 入力送信頻度（10〜60）
  interpMs:100,        // 補間遅延。サーバーのstateHzから自動で下限を決める（20Hzなら100ms）
  wakeTimeoutMs:100000,// Render無料枠の起動待ちの上限
@@ -347,7 +362,7 @@ class Online{
   $('onrejoin').style.display=this.sess?'':'none';this.msg('')}
  close(){this.abort=true;this.intentClose=true;try{this.ws&&this.ws.close()}catch(e){}this.ws=null;this.stat('');
   this.leaveUI();this.show('onl',false);this.active=false;this.g.state='menu';this.show('menu',true)}
- leaveUI(){this.me=null;this.order=[];this.fx={};this.live=false;this.offs=null;this.inRoom=false;this.room=null;
+ leaveUI(){this.teardownHud();this.me=null;this.order=[];this.fx={};this.live=false;this.offs=null;this.inRoom=false;this.room=null;
   ['lobby','onres','evo'].forEach(i=>this.show(i,false));this.show('chat',false);$('ping').textContent='';
   this.g.v.setFighters(this.g.P,[this.g.C]);for(const id in this.bub){this.bub[id].el.remove()}this.bub={}}
  fail(t){this.stat('');this.ws=null;this.sess=null;sessionStorage.removeItem('rf_sess');this.leaveUI();this.show('onl',true);this.msg(t)}
@@ -359,7 +374,7 @@ class Online{
   B('lready',()=>{const me=this.room&&this.room.players.find(p=>p.id===this.id);this.send({t:'ready',v:!(me&&me.ready)})});
   B('lstart',()=>this.send({t:'start'}));
   B('lleave',()=>{this.send({t:'leave'});this.sess=null;sessionStorage.removeItem('rf_sess');this.leaveUI();this.show('onl',true);$('onrejoin').style.display='none'});
-  B('onlb',()=>{this.show('onres',false);this.me=null;this.order=[];this.fx={};this.g.v.setFighters(this.g.P,[this.g.C]);this.show('lobby',true);this.renderLobby()});
+  B('onlb',()=>{this.show('onres',false);this.teardownHud();this.me=null;this.order=[];this.fx={};this.g.v.setFighters(this.g.P,[this.g.C]);this.show('lobby',true);this.renderLobby()});
   B('ctog',()=>{$('chat').classList.toggle('min');this.unread=0;$('ctog').textContent='–'});
   $('oncode').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
   $('cin').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;   // 日本語変換の確定Enterでは送信しない
@@ -369,7 +384,7 @@ class Online{
    if(e.code==='Enter'&&!typing&&!$('chat').classList.contains('off')){e.preventDefault();$('chat').classList.remove('min');this.g.inp.clear();$('cin').focus();return}
    if(typing)return;
    if(this.offs&&!$('evo').classList.contains('off')){if(!this.picked)this.evoKey(e);return}
-   if(this.me&&!e.repeat){if(e.code==='Tab')this.send({t:'tgt'});this.g.inp.down(e)}})}
+   if(this.me&&!e.repeat){if(e.code==='Tab'){if(this.spec)this.cycleSpec();else this.send({t:'tgt'})}if(!this.spec)this.g.inp.down(e)}})}
  /* ---------- 接続（Render無料枠の起動待ちを含む） ---------- */
  send(m){if(this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(m))}
  async go(m){this.abort=false;this.intentClose=false;this.msg('');
@@ -425,14 +440,16 @@ class Online{
   case'end':this.endMatch(m);break}}
  startMatch(m){this.fx={};this.order=[];this.snaps=[];this.evq=[];this.skew=null;this.curPhase='';this.live=false;this.offs=null;
   for(const p of m.fs){const f=new Fighter(false);f.id=p.id;f.name=p.name;f.slot=p.slot;f.picks=(m.picks&&m.picks[p.id])||[];f.setPicks();this.fx[p.id]=f;this.order.push(f)}
-  this.me=this.fx[this.id];if(!this.me)return;
+  this.me=this.fx[this.id];if(!this.me)return;this.mode=m.mode;
   this.g.v.setFighters(this.me,this.order.filter(f=>f!==this.me));this.g.state='online';this.g.inp.clear();
-  ['lobby','onres','evo'].forEach(i=>this.show(i,false));$('log').innerHTML='';this.show('chat',true);this.chips()}
+  ['lobby','onres','evo'].forEach(i=>this.show(i,false));$('log').innerHTML='';this.show('chat',true);this.setupHud();this.chips()}
  endMatch(m){this.live=false;this.offs=null;this.show('evo',false);
   const win=m.winner===this.id,nm=m.winner&&m.names&&m.names[m.winner];
   $('onrt').textContent=m.winner?(win?'YOU WIN':'YOU LOSE'):'DRAW';$('onrt').style.color=win?'var(--gold)':'var(--red)';
   const sc=Object.keys(m.score||{}).map(id=>`${(m.names&&m.names[id])||'?'} ${m.score[id]}`).join('　');
   $('onrs').textContent=(m.reason==='forfeit'?'相手が退出したため、不戦勝です。':m.reason==='error'?'サーバーエラーのため試合を終了しました。':m.winner?`${nm||'?'} の勝利。`:'引き分け。')+'　'+sc;
+  if(m.rank&&m.rank.length>1){const nm2=m.names||{},i=m.rank.indexOf(this.id);if(!win&&i>=0)$('onrt').textContent=(i+1)+'位';
+   $('onrs').textContent=m.rank.map((id,k)=>`${k+1}位　${nm2[id]||'?'}${id===this.id?'（あなた）':''}`).join('\n')+(m.reason==='time'?'\n（時間切れ：残りHPの割合で判定）':'');$('onrs').style.whiteSpace='pre-wrap'}else $('onrs').style.whiteSpace='';
   this.show('onres',true)}
  /* ---------- ロビー ---------- */
  copy(){const c=this.room&&this.room.code;if(!c)return;const done=()=>UI.toast('ルームコードをコピーしました',1200);
@@ -444,12 +461,12 @@ class Online{
     row.appendChild(mk('span','tag'+(!p.connected?' bad':p.ready?' ok':''),!p.connected?'切断中':p.host?'HOST':p.ready?'READY':'準備中'))}
    else row.appendChild(mk('span','pn','参加待ち…'));S.appendChild(row)}
   const host=r.hostId===this.id,L=$('lmode');L.textContent='';
-  for(const [k,n,en] of[['duel','DUEL（1対1）',true],['brawl','BRAWL（最大4人）',r.brawl]]){const b=mk('button',r.mode===k?'on':'',en?n:n+'　PHASE 2');b.disabled=!host||!en;b.onclick=()=>this.send({t:'mode',mode:k});L.appendChild(b)}
+  for(const [k,n,en] of[['duel','DUEL（1対1）',true],['brawl','BRAWL（2〜4人）',r.brawl]]){const b=mk('button',r.mode===k?'on':'',en?n:n+'　（無効）');b.disabled=!host||!en||(k==='duel'&&r.players.length>2);b.onclick=()=>this.send({t:'mode',mode:k});L.appendChild(b)}
   const act=r.players.filter(p=>p.connected),others=r.players.filter(p=>p.id!==r.hostId);
   const okN=r.mode==='duel'?r.players.length===2:r.players.length>=2,okR=others.every(p=>p.ready&&p.connected);
   $('lready').style.display=host?'none':'';const me=r.players.find(p=>p.id===this.id);$('lready').textContent=me&&me.ready?'準備解除':'準備完了';
   $('lstart').style.display=host?'':'none';$('lstart').disabled=!(okN&&okR);
-  $('lmsg').textContent=host?(!okN?(r.mode==='duel'?'対戦相手の参加を待っています（DUELは2人）':'あと1人以上必要です'):!okR?'全員の準備完了を待っています':'START で試合開始'):'ホストの開始を待っています';
+  $('lmsg').textContent=host?(!okN?(r.mode==='duel'?'対戦相手の参加を待っています（DUELは2人）':'あと1人以上必要です（BRAWLは2〜4人。3人以上は自動でBRAWLになります）'):!okR?'全員の準備完了を待っています':'START で試合開始'):'ホストの開始を待っています';
   void act}
  /* ---------- 進化 ---------- */
  cards(){UI.cards(this.offs,this.me.picks,this.me.M,this.sel)}
@@ -460,7 +477,9 @@ class Online{
   else if(k==='Enter'||k==='Space')pick=this.sel;
   if(pick>=0&&pick<n)this.choose(pick)}
  choose(i){if(!this.offs||this.picked||!this.offs[i])return;this.picked=true;this.send({t:'pick',i});$('evh').textContent='選択しました。他のプレイヤーを待っています…';SFX.p(520,.12,'triangle')}
- chips(){if(!this.me)return;const o=this.order.find(f=>f!==this.me)||this.me;UI.chips(this.me,$('pc'));UI.chips(o,$('cc'))}
+ chips(){if(!this.me)return;UI.chips(this.me,$('pc'));
+  if(this.mode==='brawl'){for(const f of this.order){const r=this.rows&&this.rows[f.id];if(r){r.pk.textContent=f.picks.map(p=>(ABM[p.id]||{n:'?'}).n).join('・');r.pk.title=r.pk.textContent}}return}
+  const o=this.order.find(f=>f!==this.me)||this.me;UI.chips(o,$('cc'))}
  /* ---------- チャット（ログと吹き出しは同じメッセージから生成） ---------- */
  sendChat(){const t=$('cin').value.trim().slice(0,80);if(!t)return;const n=performance.now();if(n-this.lastChat<700)return;this.lastChat=n;this.send({t:'chat',text:t});$('cin').value=''}
  addChat(m){const log=$('clog'),near=log.scrollTop+log.clientHeight>=log.scrollHeight-30,row=mk('div',m.id==='sys'?'sys':'');
@@ -478,16 +497,18 @@ class Online{
  frame(dt){
   if(this.me&&this.snaps.length){const rt=Date.now()-(this.skew||0)-this.interp;this.applyAt(rt);this.runEvents(rt);this.hud()}
   if(this.me&&this.live){this.sendAcc+=dt;const iv=1/NET.inputHz;if(this.sendAcc>=iv){this.sendAcc%=iv;this.sendInput()}}
-  this.g.v.render(dt);this.bubbles()}
+  this.spectate(dt);this.g.v.render(dt);this.bubbles();this.plates()}
  applyAt(rt){const S=this.snaps;let i=S.length-1;while(i>0&&S[i].ts>rt)i--;const a=S[i],b=S[i+1]||a,
    t=b===a?1:clamp((rt-a.ts)/Math.max(1,b.ts-a.ts),0,1);
   for(const f of this.order){const sa=a.f[f.id],sb=b.f[f.id];if(!sa||!sb)continue;f.applySnap(b===a?sb:lerpSnap(sa,sb,t))}
   const sm=b.f[this.id];this.tgId=sm?sm.tg:null;this.curM=t<.5?a.m:b.m;this.phaseUI(this.curM)}
- phaseUI(m){if(m.s===this.curPhase)return;this.curPhase=m.s;
-  if(m.s==='ready')UI.banner('ROUND '+m.r,900);else if(m.s==='fight')UI.banner('FIGHT!',700,'var(--gold)');
+ phaseUI(m){if(m.s===this.curPhase)return;this.prevPh=this.curPhase;this.curPhase=m.s;
+  if(m.s==='ready')UI.banner('ROUND '+m.r,900);else if(m.s==='fight'){if(!(this.mode==='brawl'&&this.prevPh==='evolve'))UI.banner('FIGHT!',700,'var(--gold)')}
+  else if(m.s==='evolve'&&this.mode==='brawl'&&!this.offs)UI.toast('生存者が進化を選んでいます…',2500);
+  
   else if(m.s==='pointEnd'){const w=this.fx[m.w];UI.banner(m.w?(m.w===this.id?'POINT — YOU':'POINT — '+(w?w.name:'?')):'DRAW',1500,m.w===this.id?'var(--gold)':'var(--red)')}}
  runEvents(rt){while(this.evq.length&&this.evq[0].ts<=rt){for(const x of this.evq.shift().e)this.ev(x)}}
- ev(x){const g=this.g;
+ ev(x){const g=this.g;if(x.type==='ko')return this.onKo(x);
   if(x.type==='dodge'){if(x.id===this.id){UI.toast('回避！');SFX.p(620,.07,'sine')}return}
   g.v.spark(new V(x.np[0],x.np[1],x.np[2]),x.blocked);SFX.p(x.blocked?300:110,x.blocked?.08:.13,x.blocked?'triangle':'sawtooth');
   if(x.att===this.id||x.tgt===this.id){UI.logHit({byPlayer:x.att===this.id,blocked:x.blocked,zone:x.zone,punch:x.punch,speed:x.speed,dmg:x.dmg,tags:x.tags});
@@ -495,10 +516,40 @@ class Online{
    else{g.v.cs=x.blocked?.015:.05;if(!x.blocked){const f=$('flash');f.style.opacity=1;setTimeout(()=>f.style.opacity=0,90)}}}}
  sendInput(){const I=this.g.inp.intent();
   this.send({t:'in',s:++this.seq,mx:I.mx,mz:I.mz,g:I.guard,p:[I.punch.L,I.punch.R],d:I.dash?[I.dash.x,I.dash.z]:0,sw:I.sway,dk:I.duck?1:0})}
- hud(){const me=this.me,o=this.fx[this.tgId]||this.order.find(f=>f!==me)||me,m=this.curM||{sc:{},tm:0};
-  $('mh').style.width=me.hp/me.hpMax*100+'%';$('ms').style.width=me.st/me.stMax()*100+'%';
-  $('ch').style.width=o.hp/o.hpMax*100+'%';$('cs2').style.width=o.st/o.stMax()*100+'%';$('cn').textContent=o.name||'RIVAL';
-  $('sc').textContent=((m.sc||{})[me.id]||0)+' - '+((m.sc||{})[o.id]||0);$('tm').textContent=Math.max(0,Math.ceil(m.tm))}
+ hud(){const me=this.me,m=this.curM||{sc:{},tm:0},br=this.mode==='brawl';
+  $('mh').style.width=me.hp/me.hpMax*100+'%';$('ms').style.width=me.st/me.stMax()*100+'%';$('tm').textContent=Math.max(0,Math.ceil(m.tm));
+  if(!br){const o=this.fx[this.tgId]||this.order.find(f=>f!==me)||me;
+   $('ch').style.width=o.hp/o.hpMax*100+'%';$('cs2').style.width=o.st/o.stMax()*100+'%';$('cn').textContent=o.name||'RIVAL';
+   $('sc').textContent=((m.sc||{})[me.id]||0)+' - '+((m.sc||{})[o.id]||0);return}
+  const alive=this.order.filter(f=>f.hp>0&&!(m.k||[]).includes(f.id)).length;$('sc').textContent='生存 '+alive+'/'+this.order.length;
+  for(const f of this.order){const r=this.rows[f.id];if(!r)continue;r.hb.style.width=f.hp/f.hpMax*100+'%';r.sb.style.width=f.st/f.stMax()*100+'%';r.row.classList.toggle('ko',f.hp<=0)}
+  const t=this.fx[this.tgId];$('tgtlbl').textContent=this.spec?'観戦中 ― Tabで視点切替':(t&&t.hp>0&&me.hp>0?'▶ '+t.name:'')}
+  /* ---------- 乱闘：名簿・名札・標的表示・観戦 ---------- */
+ setupHud(){const br=this.mode==='brawl',ap=(p,...c)=>{c.forEach(x=>p.appendChild(x));return p};
+  this.spec=false;this.deadT=0;this.specI=0;this.plateEls={};this.rows={};this.show('sider',!br);this.show('roster',br);this.show('tgtlbl',br);
+  if(!br)return;const R=$('roster');R.textContent='';
+  for(const f of this.order){if(f===this.me)continue;
+   const sw=mk('i','sw');sw.style.background=SLOTC[f.slot||0];const hb=mk('b'),sb=mk('b'),pk=mk('div','rpk'),row=mk('div','rrow');
+   ap(row,ap(mk('div','rtop'),mk('span','rn',f.name),sw),ap(mk('i','hp'),hb),ap(mk('i','st'),sb),pk);R.appendChild(row);this.rows[f.id]={row,hb,sb,pk};
+   const pb=mk('b'),el=ap(mk('div','np'),mk('span','',f.name),ap(mk('i','nb'),pb));$('bubbles').appendChild(el);this.plateEls[f.id]={el,b:pb}}}
+ teardownHud(){for(const id in (this.plateEls||{}))this.plateEls[id].el.remove();this.plateEls={};this.rows={};this.spec=false;this.g.v.setSpec(null);
+  $('roster').textContent='';this.show('roster',false);this.show('sider',true);this.show('tgtlbl',false)}
+ plates(){if(this.mode!=='brawl'||!this.me)return;const cam=this.g.v.cam,vs=this.g.v.spec;
+  for(const f of this.order){const p=this.plateEls[f.id];if(!p)continue;
+   if(f===this.me||(vs&&vs!=='orbit'&&vs===f)){p.el.style.display='none';continue}
+   const v=new THREE.Vector3(f.p.x+f.off.x,2.05+f.off.y,f.p.z).project(cam);
+   if(v.z>1||Math.abs(v.x)>1.05||Math.abs(v.y)>1.05){p.el.style.display='none';continue}
+   p.el.style.display='';p.el.style.left=(v.x*.5+.5)*innerWidth+'px';p.el.style.top=(-v.y*.5+.5)*innerHeight+'px';
+   p.b.style.width=Math.max(0,f.hp/f.hpMax*100)+'%';p.el.classList.toggle('tg',f.id===this.tgId&&!this.spec);p.el.classList.toggle('ko',f.hp<=0)}}
+ spectate(dt){if(this.mode!=='brawl'||!this.me)return;const v=this.g.v;
+  if(this.me.hp<=0){this.deadT+=dt;if(!this.spec&&this.deadT>1.6){this.spec=true;this.specI=0;UI.banner('脱落！観戦モード',1800,'var(--red)');this.applySpec()}}
+  if(this.spec&&v.spec&&v.spec!=='orbit'&&v.spec.hp<=0){this.specI=0;this.applySpec()}}
+ applySpec(){const v=this.g.v;if(!this.spec){v.setSpec(null);return}
+  const alive=this.order.filter(f=>f!==this.me&&f.hp>0),i=this.specI%(alive.length+1);v.setSpec(i===0?'orbit':alive[i-1])}
+ cycleSpec(){this.specI++;this.applySpec()}
+ onKo(x){const k=this.fx[x.id],b=x.by&&this.fx[x.by];
+  if(x.id===this.id){UI.banner('KO！',1400,'var(--red)');SFX.p(80,.35,'sawtooth',.08);return}
+  UI.toast(b?`${b.name} が ${k?k.name:'?'} を倒した！`:`${k?k.name:'?'} が脱落`,2200);SFX.p(120,.2,'sawtooth',.06)}
 }
 
 try{if(!window.THREE)throw new Error('Three.jsを読み込めませんでした');window.game=new Game();window.online=new Online(window.game)}
