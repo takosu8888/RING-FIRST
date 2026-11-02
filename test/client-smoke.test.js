@@ -96,5 +96,32 @@ const run=(ctx,code)=>vm.runInContext(code,ctx);
  assert.deepStrictEqual(ws2.sent[0],{t:'rejoin',code:'ABC234',token:'tok'},'セッションで復帰要求');
  o3.on({t:'err',c:'no_session',m:'x'});assert(!E3.onl.classList.contains('off')&&E3.onmsg.textContent.includes('復帰できませんでした'),'復帰不能時は分かりやすく案内');
  console.log('OK  接続: URL未設定/失敗/起動待ち/切断→自動再接続→復帰要求/復帰不能の表示');
+
+ /* ---- (4) 乱闘：最初に脱落した人の視点でサーバー出力を流し込む（名簿・名札・標的・観戦・順位） ---- */
+ const wsl=[],nm4=['A1','A2','A3','A4'];const a1=conn();tx(a1,{t:'create',name:'A1'});const code4=a1.out[0].code;wsl.push(a1);
+ for(let i=1;i<4;i++){const w=conn();tx(w,{t:'join',code:code4,name:nm4[i]});wsl.push(w)}
+ for(const w of wsl.slice(1))tx(w,{t:'ready',v:true});tx(a1,{t:'start'});const mb=S.rooms.get(code4).match;assert.strictEqual(mb.mode,'brawl');
+ const IDS=['L_JAB','R_STRAIGHT','R_HOOK','L_HOOK'];let st=0;
+ while(!wsl[0].out.some(x=>x.t==='end')&&st++<60*60*6){
+  if(mb.state==='fight')for(const [i,f] of mb.F.entries()){const id=IDS[((st/30|0)+i)%4],go=(st+i*7)%30===0;mb.input(f.id,{mx:.5,mz:1,g:0,p:[go&&id[0]==='L'?id:null,go&&id[0]==='R'?id:null],d:0,sw:0,dk:0})}
+  S.tickAll(1/60);if(++n%3===0)S.snapAll();
+  for(const w of wsl){const o=w.out.filter(x=>x.t==='offers').slice(-1)[0];if(o&&w.po!==o){w.po=o;tx(w,{t:'pick',i:0})}}}
+ assert(wsl[0].out.some(x=>x.t==='end'),'乱闘が終了した');
+ const firstKo=wsl[0].out.filter(x=>x.t==='ev').flatMap(x=>x.e).find(x=>x.type==='ko').id,specWs=wsl.find(w=>w.out[0].id===firstKo);
+ ctx=makeCtx();const o4=ctx.online,E4=ctx.__els,UI4=run(ctx,'UI'),toasts=[];const ot=UI4.toast;UI4.toast=(t,ms)=>{toasts.push(t);ot.call(UI4,t,ms)};
+ o4.open();let sawSpec=false,sawPov=false,sawRoster=false,sawTarget=false;
+ for(const msg of JSON.parse(JSON.stringify(specWs.out))){o4.on(msg);
+  if(msg.t==='start'){assert.strictEqual(o4.mode,'brawl');assert.strictEqual(Object.keys(o4.rows).length,3,'名簿は自分以外の3人');
+   assert(!E4.roster.classList.contains('off')&&E4.sider.classList.contains('off')&&!E4.tgtlbl.classList.contains('off'),'4人用HUDに切替');sawRoster=true}
+  if(msg.t==='snap'){o4.frame(.25);
+   if(o4.me.hp>0&&E4.tgtlbl.textContent.startsWith('▶ '))sawTarget=true;
+   if(o4.spec&&!sawSpec){sawSpec=true;assert.strictEqual(ctx.game.v.spec,'orbit','脱落後は俯瞰の観戦カメラ');o4.frame(.01);assert(E4.tgtlbl.textContent.includes('観戦中'),'観戦中の案内表示');
+    const alive=o4.order.filter(f=>f!==o4.me&&f.hp>0);if(alive.length){o4.cycleSpec();const sv=ctx.game.v.spec;sawPov=typeof sv==='object'&&sv!==o4.me&&sv.hp>0;o4.cycleSpec();o4.cycleSpec();o4.cycleSpec();o4.specI=0;o4.applySpec()}}}}
+ assert(sawRoster&&sawTarget,'標的表示が出る');assert(sawSpec,'脱落後に観戦へ移行する');assert(sawPov,'Tabで生存者の視点へ切替できる');
+ assert(toasts.some(t=>t.includes('を倒した')||t.includes('脱落')),'脱落の通知: '+toasts.join('|'));
+ const rt=E4.onrs.textContent.split('\n');assert(rt.length>=4&&rt[0].startsWith('1位'),'順位表示: '+E4.onrs.textContent);assert(!E4.onres.classList.contains('off'));
+ assert(/位|YOU/.test(E4.onrt.textContent));
+ E4.onlb.onclick();assert(E4.roster.classList.contains('off')&&!E4.sider.classList.contains('off')&&ctx.game.v.spec===null,'ロビーへ戻るとHUD・視点が元に戻る');
+ console.log('OK  乱闘クライアント: 名簿/標的表示/脱落通知/観戦(俯瞰→Tabで生存者視点)/順位表示/HUD復元');
  process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1)});
