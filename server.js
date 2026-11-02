@@ -9,9 +9,9 @@ const {CFG,PUNCHES,Fighter,offer,combat,separate,SYN,clamp}=Core;
 
 const E=process.env,num=(v,d,a,b)=>{const n=+v;return Number.isFinite(n)&&v!==undefined&&v!==''?Math.min(b,Math.max(a,n)):d};
 const PORT=num(E.PORT,8080,1,65535),SIM_HZ=num(E.SIM_HZ,60,20,120),STATE_HZ=num(E.STATE_HZ,20,5,60);
-const ENABLE_BRAWL=E.ENABLE_BRAWL==='1';                        // フェーズ2で有効化する4人乱闘のスイッチ
+const ENABLE_BRAWL=E.ENABLE_BRAWL!=='0';                        // 乱闘モード（緊急時は ENABLE_BRAWL=0 で無効化できる）
 const ORIGINS=(E.ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
-const MAX_ROOMS=num(E.MAX_ROOMS,50,1,500),GRACE_LOBBY=15e3,GRACE_MATCH=30e3,EVO_MS=25e3;
+const MAX_ROOMS=num(E.MAX_ROOMS,50,1,500),GRACE_LOBBY=15e3,GRACE_MATCH=30e3,EVO_MS=25e3,BRAWL_TIME=num(E.BRAWL_TIME,120,30,600),BRAWL_EVO_MS=num(E.BRAWL_EVO_MS,12e3,3e3,60e3);
 
 const rooms=new Map();let NID=0;
 const CODE_CH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -21,7 +21,7 @@ const send=(ws,o)=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))};
 
 class Room{
  constructor(code){this.code=code;this.players=new Map();this.hostId=null;this.mode='duel';this.state='lobby';this.match=null}
- cap(){return this.mode==='brawl'?4:2}
+ cap(){return 4}
  active(){return[...this.players.values()].filter(p=>!p.gone)}
  freeSlot(){const used=new Set(this.active().map(p=>p.slot));for(let i=0;i<4;i++)if(!used.has(i))return i;return -1}
  add(name,ws){const p={id:'u'+(++NID),name,ws,token:crypto.randomBytes(12).toString('hex'),slot:this.freeSlot(),ready:false,connected:true,dcAt:0,gone:false,chatT:[]};
@@ -49,12 +49,12 @@ class Match{
   for(const p of ps){const f=new Fighter(true);f.id=p.id;f.name=p.name;f.slot=p.slot;f.tgtId=null;f.left=false;this.F.push(f);this.by.set(p.id,f);
    this.inp.set(p.id,{mx:0,mz:0,g:0,one:{L:null,R:null,dash:null,sw:0,dk:false}})}
   this.score={};for(const f of this.F)this.score[f.id]=0;
-  this.round=1;this.ended=false;this.winner=null;this.tie=false;this.offers={};this.picked=new Set();this.deadline=0;this.beginRound()}
+  this.round=1;this.ended=false;this.winner=null;this.tie=false;this.offers={};this.picked=new Set();this.deadline=0;this.out=[];this.evoSet=[];this.tmax=this.mode==='brawl'?BRAWL_TIME:CFG.roundTime;this.beginRound()}
  beginRound(){
-  const n=this.F.length,pos=n<=2?[[0,2],[0,-2]]:[[-2,2],[2,2],[2,-2],[-2,-2]];   // 乱闘では四隅に配置
-  this.F.forEach((f,i)=>{const [x,z]=pos[i];f.newPoint(x,z,Math.atan2(x,z));f.tgtId=null;if(f.left)f.hp=0;
+  const n=this.F.length,pos=n<=2?[[0,2],[0,-2]]:n===3?[[-2,2],[2,2],[0,-2.2]]:[[-2,2],[2,2],[2,-2],[-2,-2]];   // 乱闘は三角／四隅に配置
+  this.F.forEach((f,i)=>{const [x,z]=pos[i];f.newPoint(x,z,Math.atan2(x,z));f.tgtId=null;f.autoId=null;f.lastHit=null;if(f.left)f.hp=0;
    const s=this.inp.get(f.id);s.one={L:null,R:null,dash:null,sw:0,dk:false}});
-  this.state='ready';this.t=1.8;this.timer=CFG.roundTime;this.winner=null;this.tie=false}
+  this.state='ready';this.t=1.8;this.timer=this.tmax;this.winner=null;this.tie=false}
  startMsg(){const picks={};for(const f of this.F)picks[f.id]=f.picks.map(p=>({id:p.id,r:p.r}));
   return{t:'start',mode:this.mode,fs:this.F.map(f=>({id:f.id,name:f.name,slot:f.slot})),picks,score:this.score}}
  resync(p){send(p.ws,this.startMsg());if(this.state==='evolve'&&this.offers[p.id]&&!this.picked.has(p.id))send(p.ws,{t:'offers',o:this.offers[p.id],ms:Math.max(0,this.deadline-Date.now())})}
@@ -67,8 +67,10 @@ class Match{
   if(m.sw===-1||m.sw===1)o.sw=m.sw;if(m.dk)o.dk=true}
  enemies(f){return this.F.filter(o=>o!==f&&o.hp>0)}
  targetOf(f){const al=this.enemies(f);if(!al.length)return this.F.find(o=>o!==f)||f;
-  if(f.tgtId){const t=al.find(o=>o.id===f.tgtId);if(t)return t}
-  return al.reduce((a,b)=>Math.hypot(a.p.x-f.p.x,a.p.z-f.p.z)<=Math.hypot(b.p.x-f.p.x,b.p.z-f.p.z)?a:b)}
+  const d=o=>Math.hypot(o.p.x-f.p.x,o.p.z-f.p.z);
+  if(f.tgtId){const t=al.find(o=>o.id===f.tgtId);if(t)return t;f.tgtId=null}
+  const near=al.reduce((a,b)=>d(a)<=d(b)?a:b),cur=f.autoId&&al.find(o=>o.id===f.autoId),pick=(cur&&d(cur)<d(near)+.6)?cur:near;
+  f.autoId=pick.id;return pick}
  cycle(pid){const f=this.by.get(pid);if(!f||f.hp<=0)return;const al=this.enemies(f).sort((a,b)=>Math.hypot(a.p.x-f.p.x,a.p.z-f.p.z)-Math.hypot(b.p.x-f.p.x,b.p.z-f.p.z));
   if(al.length<2)return;const cur=this.targetOf(f),i=al.indexOf(cur);f.tgtId=al[(i+1)%al.length].id}
  intent(f,tgt,fight){
@@ -83,8 +85,10 @@ class Match{
   for(const f of this.F){const tgt=this.targetOf(f);f.upd(dt,this.intent(f,tgt,fight),tgt)}
   separate(this.F);
   if(fight){const ev=[];for(const a of this.F)combat(a,this.F,dt,ev);
+   for(const e of ev)if(e.type==='hit'){const t=this.by.get(e.tgt);if(t)t.lastHit=e.att}
+   this.timer-=dt;let after=null;if(this.mode==='brawl')after=this.brawlCheck(ev);
    if(ev.length)this.room.bc({t:'ev',ts:Date.now(),e:ev});
-   this.timer-=dt;this.checkEnd()}
+   if(this.mode==='brawl'){if(after)after()}else this.checkEnd()}
   else{this.t-=dt;if(this.t<=0){if(this.state==='ready')this.state='fight';else if(this.state==='pointEnd')this.afterPoint()}}}
  checkEnd(){const al=this.F.filter(f=>f.hp>0);
   if(this.mode==='duel'){
@@ -99,35 +103,57 @@ class Match{
   const top=this.F.find(f=>this.score[f.id]>=CFG.pointsToWin);if(top)return this.finish(top.id,'points');
   this.openEvolve()}
  /* ----- 進化（抽選・検証・適用はサーバーのみ） ----- */
- openEvolve(){this.state='evolve';this.offers={};this.picked=new Set();this.ns={};this.deadline=Date.now()+EVO_MS;
-  for(const f of this.F){const p=this.room.players.get(f.id);
+ openEvolve(list){list=list||this.F;this.state='evolve';this.offers={};this.picked=new Set();this.ns={};this.evoSet=list.map(f=>f.id);
+  const ms=this.mode==='brawl'?BRAWL_EVO_MS:EVO_MS;this.deadline=Date.now()+ms;
+  for(const f of list){const p=this.room.players.get(f.id);
    if(!p||p.gone||!p.connected){this.auto(f);continue}
    const st=f.stat,sc={off:st.punch/10,def:st.guard/4,dodge:st.dodge/3},m=Math.max(sc.off,sc.def,sc.dodge),fav=m>0?Object.keys(sc).find(k=>sc[k]===m):null;
-   this.offers[f.id]=offer(f.picks,fav);send(p.ws,{t:'offers',o:this.offers[f.id],ms:EVO_MS})}
+   this.offers[f.id]=offer(f.picks,fav);send(p.ws,{t:'offers',o:this.offers[f.id],ms})}
   this.checkEvo()}
  apply(f,o){const before=new Set(SYN.filter(s=>f.M.f[s.id]).map(s=>s.id));f.picks.push({id:o.id,r:o.r});f.setPicks();
   const now=SYN.filter(s=>f.M.f[s.id]&&!before.has(s.id)).map(s=>s.n);if(now.length)this.ns[f.id]=now;this.picked.add(f.id)}
  auto(f){const o=offer(f.picks,null);this.apply(f,o[Math.floor(Math.random()*o.length)])}
- pick(pid,i){if(this.state!=='evolve'||this.picked.has(pid))return;const f=this.by.get(pid),o=this.offers[pid]&&this.offers[pid][i|0];if(!f||!o)return;this.apply(f,o);this.checkEvo()}
- checkEvo(){if(this.F.every(f=>this.picked.has(f.id)))this.finishEvo()}
- forceEvo(){for(const f of this.F)if(!this.picked.has(f.id))this.auto(f);this.finishEvo()}
+ pick(pid,i){if(this.state!=='evolve'||this.picked.has(pid)||!this.evoSet.includes(pid))return;const f=this.by.get(pid),o=this.offers[pid]&&this.offers[pid][i|0];if(!f||!o)return;this.apply(f,o);this.checkEvo()}
+ checkEvo(){if(this.state==='evolve'&&this.evoSet.every(id=>this.picked.has(id)))this.finishEvo()}
+ forceEvo(){for(const id of this.evoSet)if(!this.picked.has(id))this.auto(this.by.get(id));this.finishEvo()}
  finishEvo(){const picks={};for(const f of this.F)picks[f.id]=f.picks.map(p=>({id:p.id,r:p.r}));
-  this.room.bc({t:'picks',picks,ns:this.ns});this.ns={};this.round++;this.beginRound()}
+  this.room.bc({t:'picks',picks,ns:this.ns});this.ns={};
+  if(this.mode==='brawl'){this.state='fight';for(const s of this.inp.values())s.one={L:null,R:null,dash:null,sw:0,dk:false}}   // 乱闘は同じ試合を再開（HP等はそのまま）
+  else{this.round++;this.beginRound()}}
+ /* ----- 乱闘：脱落の検出・順位・終了 ----- */
+ brawlCheck(ev){
+  const newly=this.F.filter(f=>f.hp<=0&&!f.out);
+  for(const f of newly){f.out=true;this.out.push(f.id);ev.push({type:'ko',id:f.id,by:f.lastHit||null})}
+  const al=this.F.filter(f=>f.hp>0),r=f=>f.hp/f.hpMax;
+  if(al.length<=1)return()=>this.finishBrawl(al[0]||null,'last');
+  if(this.timer<=0){const s=[...al].sort((a,b)=>r(b)-r(a));return()=>this.finishBrawl(Math.abs(r(s[0])-r(s[1]))<.005?null:s[0],'time')}
+  if(newly.length)return()=>this.openEvolve(al);   // 生存者だけが進化を選ぶ
+  return null}
+ finishBrawl(w,reason){const r=f=>f.hp/f.hpMax,alive=this.F.filter(f=>f.hp>0).sort((a,b)=>r(b)-r(a));
+  const rank=[...alive.map(f=>f.id),...[...this.out].reverse().filter(id=>!alive.some(a=>a.id===id))];
+  if(w){const i=rank.indexOf(w.id);if(i>0){rank.splice(i,1);rank.unshift(w.id)}}
+  this.finish(w?w.id:null,reason,{rank})}
  forfeit(pid){const f=this.by.get(pid);if(!f||this.ended)return;f.left=true;f.hp=0;
-  if(this.mode==='duel'){const o=this.F.find(x=>x.id!==pid);this.finish(o?o.id:null,'forfeit')}}
- finish(w,reason){if(this.ended)return;this.ended=true;this.state='end';const r=this.room;
-  r.bc({t:'end',winner:w||null,reason,score:this.score,names:Object.fromEntries(this.F.map(f=>[f.id,f.name]))});
+  if(this.mode==='duel'){const o=this.F.find(x=>x.id!==pid);this.finish(o?o.id:null,'forfeit');return}
+  if(!f.out){f.out=true;this.out.push(pid);this.room.bc({t:'ev',ts:Date.now(),e:[{type:'ko',id:pid,by:null}]})}
+  const al=this.F.filter(x=>x.hp>0);
+  if(al.length<=1)return this.finishBrawl(al[0]||null,'last');
+  if(this.state==='evolve'){this.picked.add(pid);this.checkEvo()}}
+ finish(w,reason,extra){if(this.ended)return;this.ended=true;this.state='end';const r=this.room;
+  r.bc(Object.assign({t:'end',winner:w||null,reason,score:this.score,names:Object.fromEntries(this.F.map(f=>[f.id,f.name]))},extra||{}));
   r.match=null;r.state='lobby';
   for(const [id,p] of [...r.players]){if(p.gone)r.players.delete(id);else p.ready=false}
   if(!r.players.has(r.hostId))r.pickHost();r.bc(r.info())}
- snapMsg(){return{t:'snap',ts:Date.now(),m:{s:this.state,tm:Math.max(0,Math.round(this.timer*10)/10),r:this.round,sc:this.score,w:this.winner},
+ snapMsg(){return{t:'snap',ts:Date.now(),m:{s:this.state,tm:Math.max(0,Math.round(this.timer*10)/10),r:this.round,sc:this.score,w:this.winner,k:this.out.slice()},
   f:this.F.map(f=>{const s=f.snap();s.tg=this.targetOf(f).id;return s})}}
 }
 
 /* ============ メッセージ処理 ============ */
 const err=(ws,c,m)=>send(ws,{t:'err',c,m});
 const joinedMsg=(r,p)=>({t:'joined',id:p.id,token:p.token,code:r.code,cfg:{stateHz:STATE_HZ,simHz:SIM_HZ}});
-function attach(ws,r,p){ws.room=r;ws.pid=p.id;send(ws,joinedMsg(r,p));r.sys(p.name+'が参加しました');r.bc(r.info())}
+function attach(ws,r,p){ws.room=r;ws.pid=p.id;send(ws,joinedMsg(r,p));r.sys(p.name+'が参加しました');
+ if(r.mode==='duel'&&ENABLE_BRAWL&&r.active().length>2){r.mode='brawl';for(const q of r.players.values())q.ready=false;r.sys('3人以上になったため、BRAWL（乱闘）に切り替えました')}
+ r.bc(r.info())}
 
 function onMsg(ws,m){
  const room=ws.room,p=room&&room.players.get(ws.pid);
@@ -156,7 +182,7 @@ function onMsg(ws,m){
  case'ready':if(room.state!=='lobby')return;p.ready=!!m.v;return room.bc(room.info());
  case'mode':{if(p.id!==room.hostId||room.state!=='lobby')return;
   const k=m.mode;if(k!=='duel'&&k!=='brawl')return;
-  if(k==='brawl'&&!ENABLE_BRAWL)return err(ws,'nope','BRAWLはフェーズ2で対応予定です');
+  if(k==='brawl'&&!ENABLE_BRAWL)return err(ws,'nope','BRAWLは現在無効になっています');
   if(k==='duel'&&room.active().length>2)return err(ws,'nope','参加者が3人以上のためDUELにできません');
   room.mode=k;for(const q of room.players.values())q.ready=false;return room.bc(room.info())}
  case'start':{if(p.id!==room.hostId||room.state!=='lobby')return;
