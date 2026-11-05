@@ -5,8 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/cpu-core.test.js && node test/server-sim.test.js && node test/brawl-sim.test.js && node test/client-smoke.test.js"
+    "test": "node test/cpu-core.test.js && node test/combat-balance.test.js && node test/server-sim.test.js && node test/brawl-sim.test.js && node test/rounds-sim.test.js && node test/client-smoke.test.js && node test/client-features.test.js && node test/client-online-features.test.js"
   },
-  "engines": { "node": ">=18" },
-  "dependencies": { "ws": "^8.18.0" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
 }
