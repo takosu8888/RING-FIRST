@@ -552,7 +552,7 @@ const Tut={i:0,tm:null,pages:[{"t": "① 基本移動（WASD）", "v": "<div cla
    ・入力だけを送り、状態はサーバーのスナップショットを補間して表示します。
    ・NET の数値は初期設定です。URLに ?inputHz=45&interp=150 を付けて試せます。 */
 const NET={
- server:'wss://YOUR-APP-NAME.onrender.com',   // ★ここにRenderのURLを設定（https:// ではなく wss:// で始める）
+ server:'wss://ring-first.onrender.com',
  inputHz:30,          // 入力送信頻度（10〜60）
  interpMs:100,        // 補間遅延。サーバーのstateHzから自動で下限を決める（20Hzなら100ms）
  wakeTimeoutMs:100000,// Render無料枠の起動待ちの上限
