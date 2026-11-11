@@ -149,6 +149,16 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 @keyframes mkv{0%,100%{left:calc(50% - 150px + 22px)}33%{left:calc(50% - 22px)}66%{left:calc(50% + 120px)}}
 .tri{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;align-items:center}.tri span{padding:5px 10px;border:1px solid #6b7aa0;background:#1a2340}.tri em{font-style:normal;color:var(--gold)}
 .tt{border-collapse:collapse;font-size:12px}.tt td,.tt th{border:1px solid #33405f;padding:4px 7px}.tt th{background:#1a2340}
+
+/* ---- サンドバッグモード ---- */
+.sbgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.sbc{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;margin:0;padding:12px;background:#222c48;color:var(--ink);letter-spacing:0}
+.sbc span{font-weight:400;font-size:12px;opacity:.8;line-height:1.5}
+#sbpanel{position:fixed;right:max(14px,env(safe-area-inset-right));top:max(124px,calc(env(safe-area-inset-top) + 112px));width:min(310px,44vw);background:var(--panel);padding:10px;font-size:12.5px;z-index:3;max-height:calc(100vh - 150px);overflow:auto}
+#sbpanel.off{display:none}.sbhd{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;margin-bottom:6px}.sbhd span{font-size:11px;opacity:.7;letter-spacing:.1em}
+.sbsw{display:flex;gap:4px}.sbsw button{margin:0;padding:6px 2px;font-size:11px;flex:1;background:#222c48;color:var(--ink);letter-spacing:0}.sbsw button.on{background:var(--gold);color:#1a1405}
+#sbpanel pre{white-space:pre-wrap;margin:6px 0;font:inherit;line-height:1.55}#sblast{border-left:3px solid var(--gold);padding-left:7px}#sbcombo{color:var(--gold)}
+#sbpanel button#sbreset{padding:7px;font-size:12px;margin-top:8px}#sbtable .tt{width:100%}#sbtable td,#sbtable th{padding:3px 5px}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="top">
@@ -163,6 +173,7 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 <h1>RING FIRST</h1><p class="sub">3ポイント先取。ポイントごとに進化して、自分だけのビルドで戦う。</p>
 <button id="bcpu">CPU対戦</button>
 <button id="bonl" class="alt">ONLINE BATTLE（1対1 DUEL ／ 最大4人 BRAWL）</button>
+<button id="bsb" class="alt">サンドバッグ（練習モード）</button>
 <div class="row2"><button id="btut" class="alt">遊び方</button><button id="bset" class="alt">設定</button></div>
 <p class="note">オンライン対戦には専用サーバー（README参照）が必要です。CPU戦はサーバー無しでそのまま遊べます。</p>
 <div class="keys">操作はすべてキーボードだけ。カメラは相手を滑らかに追従します。<br>J：なし=ジャブ W=アッパー A=フック S=逆フック D=ボディ<br>K：なし=ストレート W=アッパー A=ボディフック S=フック D=ボディ<br>同時押しの優先順位：W ＞ S ＞ A ＞ D<br>進化の選択：1／2／3、または A／D で選んで Enter<br>P：ポーズ ／ L：戦闘ログの表示切替（設定からも変更できます）</div>
@@ -194,6 +205,18 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 <div class="row2"><button id="tutprev" class="alt">‹ 前へ</button><button id="tutnext">次へ ›</button></div>
 <button id="tutclose" class="alt">閉じる</button>
 </div></div>
+<div id="sbsel" class="ov off"><div class="card"><h1 style="font-size:clamp(26px,6vw,38px)">サンドバッグ</h1><p class="sub">自由に打って、パンチの威力・速度・コンボを確認する練習モードです。</p>
+<div class="sbgrid">
+<button id="sbt-bag" class="sbc"><b>ヘビーバッグ</b><span>吊り下げ式の重いバッグ。揺れに合わせてコンビネーションを練習</span></button>
+<button id="sbt-ball" class="sbc"><b>リフレックスボール</b><span>ヘッドバンドの紐つきボール。弾んで戻る小さな的で正確さを練習</span></button>
+<button id="sbt-stand" class="sbc"><b>スパーリングスタンド</b><span>回転バーと頭の高さのボール。バーに当てると回転する</span></button>
+<button id="sbt-human" class="sbc"><b>人型ダミー</b><span>NPCと同じ人型モデル。頭・胸・腹・腕の部位別ダメージを確認</span></button></div>
+<p class="note">開始すると戦闘ログが自動でONになります。終了すると、開始前の設定に戻ります。</p>
+<button id="sbback" class="alt">戻る</button></div></div>
+<div id="sbpanel" class="off"><div class="sbhd"><b id="sbname"></b><span>PRACTICE</span></div>
+<div class="sbsw"><button id="sbk-bag">①バッグ</button><button id="sbk-ball">②ボール</button><button id="sbk-stand">③スタンド</button><button id="sbk-human">④人型</button></div>
+<div class="note">1〜4キーで的を切替／Pでメニュー（終了）</div>
+<pre id="sblast"></pre><pre id="sbcombo"></pre><div id="sbtable"></div><button id="sbreset" class="alt">統計をリセット</button></div>
 <div id="onl" class="ov off"><div class="card">
 <h1 style="font-size:clamp(28px,6vw,40px)">ONLINE BATTLE</h1><p class="sub">ルームコードで友達と対戦（1対1 DUEL ／ 最大4人 BRAWL）</p>
 <label class="fl">プレイヤー名<input id="onname" maxlength="12" autocomplete="off"></label>
@@ -218,17 +241,21 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 <script>
 "use strict";
 /* RING FIRST — index.html。戦闘ロジック・CPU・進化は game-core.js（RFCore）に分離しています。 */
-const {CFG,STEP,V,clamp,rnd,angd,pc,PUNCHES,PM,PRI,AB,ABM,SYN,RN,RC,calc,rollR,offer,Fighter,IDLE,STY,DIFF,AI,combat,separate,lerpSnap,segDist}=RFCore;
+const {CFG,STEP,V,clamp,rnd,angd,pc,PUNCHES,PM,PRI,AB,ABM,SYN,RN,RC,calc,rollR,offer,Fighter,IDLE,STY,DIFF,AI,combat,separate,lerpSnap,segDist,Dummy,DUMMY_TYPES}=RFCore;
 const $=id=>document.getElementById(id);
 /* ============ 入力（キー→意図） ============ */
 /* ============ 設定（localStorageに保存） ============ */
-const Settings={log:true,cam:true,
+const Settings={log:false,cam:true,forced:false,prev:null,   // 戦闘ログは初期設定OFF。保存済みの値（ユーザーがONにした場合など）があればそれに従う
  load(){try{const s=JSON.parse(localStorage.getItem('rf_settings')||'{}');if(typeof s.log==='boolean')this.log=s.log;if(typeof s.cam==='boolean')this.cam=s.cam}catch(e){}this.apply();
   addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if(e.code==='KeyL'&&!e.repeat)this.set('log',!this.log)})},   // Lキー：戦闘ログの表示切替（表示だけを切り替える）
  save(){try{localStorage.setItem('rf_settings',JSON.stringify({log:this.log,cam:this.cam}))}catch(e){}},
- apply(){document.body.classList.toggle('nolog',!this.log);const l=$('sglog'),c=$('sgcam');
-  if(l){l.textContent=this.log?'ON':'OFF';l.setAttribute('aria-pressed',String(this.log))}if(c){c.textContent=this.cam?'ON':'OFF';c.setAttribute('aria-pressed',String(this.cam))}},
- set(k,v){this[k]=!!v;this.save();this.apply();if(k==='log')UI.toast('戦闘ログ：'+(v?'表示':'非表示'),900)}};
+ eff(){return this.forced||this.log},   // 実際に表示するか（サンドバッグ中は強制ON）
+ apply(){document.body.classList.toggle('nolog',!this.eff());const l=$('sglog'),c=$('sgcam');
+  if(l){l.textContent=this.forced?'ON（固定）':(this.log?'ON':'OFF');l.setAttribute('aria-pressed',String(this.eff()));l.disabled=this.forced}
+  if(c){c.textContent=this.cam?'ON':'OFF';c.setAttribute('aria-pressed',String(this.cam))}},
+ set(k,v){if(k==='log'&&this.forced){UI.toast('サンドバッグモード中は戦闘ログが常にONです',1400);return}this[k]=!!v;this.save();this.apply();if(k==='log')UI.toast('戦闘ログ：'+(v?'表示':'非表示'),900)},
+ enterForced(){if(this.forced)return;this.prev=this.log;this.forced=true;this.apply()},   // 開始前の設定を保存し、ONに固定（保存データには書き込まない）
+ exitForced(){if(!this.forced)return;this.forced=false;this.log=this.prev;this.prev=null;this.apply()}};   // 開始前の設定へ戻す（OFFならOFF、ONならON）
 const DESC={easy:'攻撃は控えめで、防御や回避の反応も遅めです。初めての人向け。',normal:'標準的なCPU。攻撃・防御・距離の調整をひと通り行います。',
  hard:'あなたの攻め方（連打・ガード）を観察して対応し、攻撃後の隙や空振りを狙ってきます。',insane:'「つよい」と同じ判断力に、CPUの基礎能力の補正が加わります。'};
 class Spr{constructor(k,c){this.x=0;this.v=0;this.k=k;this.c=c}   // カメラ演出用のスプリング（慣性・揺り戻し）
@@ -353,6 +380,32 @@ class View{
  spark(p,guard){const m=new THREE.Mesh(new THREE.SphereGeometry(.09,10,8),new THREE.MeshBasicMaterial({color:guard?0x9fc4ff:0xffd27a,transparent:true}));m.position.copy(p);this.s.add(m);this.fx.push({m,t:0})}
 
  /* ---- カメラ演出（Settings.cam）：スプリングで慣性を持たせ、攻防の種類に応じて動かす。OFF時は衝撃・揺れ・ボブ・慣性をすべて無効にする ---- */
+ /* ---- サンドバッグの的の描画（人型は既存のNPCモデルをそのまま使う） ---- */
+ setDummy(d){this.clearDummy();this.dummy=d;if(d.type==='human'){this.setFighters(this.P,[d]);return}this.setFighters(this.P,[]);this.dm=this.buildDummyMesh(d);this.s.add(this.dm.g)}
+ clearDummy(){if(this.dm){this.s.remove(this.dm.g);this.dm.g.traverse(m=>{if(m.geometry)m.geometry.dispose()});this.dm=null}this.dummy=null}
+ buildDummyMesh(d){const T=THREE,M=(c,r,m)=>new T.MeshStandardMaterial({color:c,roughness:r==null?.6:r,metalness:m||0}),
+   mesh=(geo,mat,x,y,z,p)=>{const o=new T.Mesh(geo,mat);o.position.set(x,y,z);o.castShadow=true;if(p)p.add(o);return o},g=new T.Group(),R={g};
+  if(d.type==='bag'){   // 吊り下げ式ヘビーバッグ：黒い本体・金のラベル・鎖・天井フレーム
+   const fr=new T.Group();fr.position.set(d.base.x,0,d.base.z);g.add(fr);mesh(new T.BoxGeometry(1.3,.08,.1),M(0x2a2e36,.5,.3),0,2.44,0,fr);
+   for(const sx of[-.62,.62])mesh(new T.CylinderGeometry(.04,.04,2.44,10),M(0x2a2e36,.5,.3),sx,1.22,0,fr);
+   const sw=new T.Group();sw.position.set(d.base.x,2.4,d.base.z);g.add(sw);R.sw=sw;
+   mesh(new T.CylinderGeometry(.24,.24,1.45,28),M(0x14171c,.42),0,-1.25,0,sw);mesh(new T.CylinderGeometry(.2,.24,.09,28),M(0x0e1013,.5),0,-.48,0,sw);
+   mesh(new T.CylinderGeometry(.245,.245,.1,28),M(0xd9a21b,.5,.2),0,-.97,0,sw);mesh(new T.CylinderGeometry(.245,.245,.03,28),M(0x333a45,.5),0,-1.7,0,sw);
+   for(const a of[0,2.09,4.19])mesh(new T.CylinderGeometry(.012,.012,.52,6),M(0xb9bec8,.3,.8),Math.cos(a)*.1,-.26,Math.sin(a)*.1,sw)}
+  else if(d.type==='ball'){   // リフレックスボール：赤いボール＋白い紐（ヘッドバンドへ）
+   R.ball=mesh(new T.SphereGeometry(.12,24,18),M(0xd8242a,.55),0,1.5,0,g);R.str=mesh(new T.CylinderGeometry(.004,.004,1,6),M(0xf2f2f2,.6),0,0,0,g);R.str.castShadow=false}
+  else{   // スパーリングスタンド：重い土台（オレンジのリング）・ポール・頭の高さのボール・白ライン入りの回転バー
+   const b=d.base,gp=new T.Group();gp.position.set(b.x,0,b.z);g.add(gp);R.gp=gp;
+   mesh(new T.CylinderGeometry(.42,.5,.2,28),M(0x1b1d22,.5,.2),0,.1,0,gp);mesh(new T.CylinderGeometry(.45,.45,.03,28),M(0xe08a1e,.5),0,.215,0,gp);
+   mesh(new T.CylinderGeometry(.035,.035,1.5,12),M(0x15171b,.4,.3),0,.95,0,gp);mesh(new T.SphereGeometry(.17,24,18),M(0x101216,.35,.2),0,1.62,0,gp);
+   const bar=new T.Group();bar.position.set(0,1.15,0);gp.add(bar);R.bar=bar;
+   const bm=mesh(new T.CylinderGeometry(.07,.07,.95,20),M(0x14171c,.45),.5,0,0,bar);bm.rotation.z=Math.PI/2;
+   for(const x of[.12,.88]){const st=mesh(new T.CylinderGeometry(.074,.074,.035,20),M(0xf2f2f2,.5),x,0,0,bar);st.rotation.z=Math.PI/2}}
+  return R}
+ dummySync(dt){const d=this.dummy,R=this.dm;if(!d||!R)return;this.bt2=(this.bt2||0)+dt;
+  if(d.type==='bag'){R.sw.rotation.z=d.sx;R.sw.rotation.x=-d.sz}
+  else if(d.type==='ball'){R.ball.position.set(d.bp.x,d.bp.y,d.bp.z);const o=d.owner;place(R.str,new V(o.p.x,1.75,o.p.z),d.bp)}
+  else{R.bar.rotation.y=-d.phi;R.gp.rotation.z=Math.sin(this.bt2*22)*d.shake*.025}}
  initCam(){const S=(k,c)=>new Spr(k,c);this.cf={yaw:S(90,11),pitch:S(90,11),roll:S(80,10),fov:S(55,9),fwd:S(70,10),lat:S(70,10),up:S(70,10)};
   this.pa={L:false,R:false};this.pdash=false;this.psw=false;this.pdk=false;this.lv={x:0,z:0};this.cine=null}
  punchKick(def,hand){const c=this.cf,m=hand==='L'?-1:1,id=def.id;
@@ -390,7 +443,7 @@ class View{
   if(this.cine)this.cineCam(dt,c);
   for(const r of this.rigs)r.sync(gdt);
   for(let i=this.fx.length-1;i>=0;i--){const e2=this.fx[i];e2.t+=gdt;const u=e2.t/.22;e2.m.scale.setScalar(1+u*2.5);e2.m.material.opacity=1-u;if(u>=1){this.s.remove(e2.m);e2.m.geometry.dispose();e2.m.material.dispose();this.fx.splice(i,1)}}
-  this.updConfetti(gdt);
+  this.updConfetti(gdt);if(this.dm)this.dummySync(gdt);
   this.r.render(this.s,c)}
  /* ---- 勝敗ムービー：既存モデルのまま、カメラワーク・スローモーション・簡易ポーズ・効果音で見せる ---- */
  playCine(kind,W,L,onDone){const win=kind==='win';
@@ -427,9 +480,9 @@ class View{
 const idleFor=(f,o)=>({mx:0,mz:0,punch:{},guard:0,sway:0,duck:false,face:Math.atan2(-(o.p.x-f.p.x),-(o.p.z-f.p.z))});
 class Game{
  constructor(){this.P=new Fighter(true);this.C=new Fighter(false);this.P.id='p';this.C.id='c';this.inp=new Input();this.state='menu';this.acc=0;this.last=performance.now();this.t=0;this.timer=CFG.roundTime;
-  this.score={p:0,c:0};this.round=1;this.sel=0;this.offs=[];this.lastW=null;this.ai=new AI('combo');this.rounds=3;this.diff='normal';this.final=false;this.pausedFrom=null;this.loadCfg();
+  this.score={p:0,c:0};this.round=1;this.sel=0;this.offs=[];this.lastW=null;this.ai=new AI('combo');this.rounds=3;this.diff='normal';this.final=false;this.pausedFrom=null;this.sb=null;this.loadCfg();
   this.v=new View($('c'),this.P,this.C);this.bind();Settings.load();this.hud();requestAnimationFrame(t=>this.frame(t))}
- newMatch(){const D=DIFF[this.diff]||DIFF.normal;this.C.bonus=D.bonus||null;this.C.bonusLabel=D.bonus?'激ムズ補正':null;this.C.bonusTitle=D.bonusText||'';   // 難易度は試合開始時に確定
+ newMatch(){this.leaveSandbag();const D=DIFF[this.diff]||DIFF.normal;this.C.bonus=D.bonus||null;this.C.bonusLabel=D.bonus?'激ムズ補正':null;this.C.bonusTitle=D.bonusText||'';   // 難易度は試合開始時に確定
   this.P.newMatch();this.C.newMatch();const k=Object.keys(STY);this.ai=new AI(k[Math.floor(Math.random()*k.length)],this.diff);
   $('cn').textContent='CPU（'+this.ai.S.n+' ／ '+D.n+'）';this.score={p:0,c:0};this.round=1;this.final=false;this.pausedFrom=null;this.stopCineUI();$('pause').classList.add('off');$('log').innerHTML='';
   $('menu').classList.add('off');$('over').classList.add('off');$('evo').classList.add('off');UI.chips(this.P,$('pc'));UI.chips(this.C,$('cc'));this.beginRound();if(D.bonus)setTimeout(()=>UI.toast('激ムズ：CPUに能力補正 ― '+D.bonusText,3800),900)}
@@ -440,7 +493,8 @@ class Game{
    if(e.target&&e.target.tagName==='INPUT')return;if(['Space','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Tab'].includes(e.code))e.preventDefault();
    if(e.code==='KeyP'&&!e.repeat){this.togglePause();return}
    if(this.state==='cine'&&(e.code==='Space'||e.code==='Enter'||e.code==='Escape')){this.v.skipCine();return}
-   if(this.state==='fight')this.inp.down(e);else if(this.state==='evolve')this.evoKey(e)});
+   if(this.state==='sandbag'&&/^Digit[1-4]$/.test(e.code)&&!e.repeat){this.sbSwitch(['bag','ball','stand','human'][+e.code.slice(5)-1]);return}
+   if(this.state==='fight'||this.state==='sandbag')this.inp.down(e);else if(this.state==='evolve')this.evoKey(e)});
   addEventListener('keyup',e=>this.inp.up(e));
   addEventListener('blur',()=>this.inp.clear());document.addEventListener('visibilitychange',()=>this.inp.clear());
   $('bcpu').onclick=()=>this.openSetup();$('bre').onclick=()=>this.newMatch();this.bindUI();
@@ -448,18 +502,18 @@ class Game{
  /* ---- ポーズ（P）：state を 'paused' にするだけ。step() は何も進めず、frame() も時間を溜めない ---- */
  togglePause(){if(window.online&&window.online.active){window.online.togglePause();return}
   if(this.state==='paused')return this.resume();
-  if(this.state!=='fight'&&this.state!=='ready')return;   // 進化・結果・ムービー・タイトルでは無効
+  if(this.state!=='fight'&&this.state!=='ready'&&this.state!=='sandbag')return;   // 進化・結果・ムービー・タイトルでは無効
   this.pausedFrom=this.state;this.state='paused';this.inp.clear();this.showPause(true)}
  resume(){if(this.state!=='paused')return;this.state=this.pausedFrom;this.pausedFrom=null;this.showPause(false);this.inp.clear();this.last=performance.now()}
- showPause(on,online){$('pause').classList.toggle('off',!on);$('prestart').style.display=online?'none':'';$('pnote').textContent=online?'オンライン対戦では、メニューを開いても試合は止まりません（操作は受け付けなくなります）。':'';if(on)$('presume').focus()}
- quitToTitle(){this.showPause(false);$('over').classList.add('off');$('evo').classList.add('off');this.stopCineUI();this.state='menu';this.pausedFrom=null;this.inp.clear();$('menu').classList.remove('off')}
+ showPause(on,online){$('pause').classList.toggle('off',!on);$('prestart').style.display=online?'none':'';$('prestart').textContent=this.sb?'統計をリセットして再開':'試合を最初からやり直す';$('pnote').textContent=online?'オンライン対戦では、メニューを開いても試合は止まりません（操作は受け付けなくなります）。':'';if(on)$('presume').focus()}
+ quitToTitle(){this.leaveSandbag();this.showPause(false);$('over').classList.add('off');$('evo').classList.add('off');this.stopCineUI();this.state='menu';this.pausedFrom=null;this.inp.clear();$('menu').classList.remove('off')}
  /* ---- CPU対戦の設定（ラウンド数・難易度） ---- */
  loadCfg(){const d={mode:'preset',rounds:3,custom:'7',diff:'normal'};
   try{const s=JSON.parse(localStorage.getItem('rf_setup')||'{}');if(s.mode==='custom'||s.mode==='preset')d.mode=s.mode;if([3,5,10].includes(s.rounds))d.rounds=s.rounds;
    if(/^\d{1,2}$/.test(String(s.custom)))d.custom=String(s.custom);if(DIFF[s.diff])d.diff=s.diff}catch(e){}this.cfg=d}
  saveCfg(){try{localStorage.setItem('rf_setup',JSON.stringify(this.cfg))}catch(e){}}
  roundsValid(){const c=this.cfg;if(c.mode!=='custom')return true;return /^\d{1,2}$/.test(String(c.custom))&&+c.custom>=1&&+c.custom<=20}   // 0以下・不正値・21以上は不可
- openSetup(){$('menu').classList.add('off');$('setup').classList.remove('off');this.setupRender()}
+ openSetup(){this.leaveSandbag();$('menu').classList.add('off');$('setup').classList.remove('off');this.setupRender()}
  setupRender(){const c=this.cfg,ok=this.roundsValid();
   for(const r of[3,5,10])$('rb'+r).classList.toggle('on',c.mode==='preset'&&c.rounds===r);$('rbc').classList.toggle('on',c.mode==='custom');
   $('rcustom').style.display=c.mode==='custom'?'':'none';if($('rcustom').value!==c.custom)$('rcustom').value=c.custom;
@@ -475,9 +529,11 @@ class Game{
   B('sstart',()=>this.setupStart());B('sback',()=>{$('setup').classList.add('off');$('menu').classList.remove('off')});
   B('btut',()=>Tut.open());Tut.init();B('bset',()=>this.openSettings());
   B('presume',()=>{if(window.online&&window.online.active)window.online.togglePause();else this.resume()});
-  B('prestart',()=>{this.showPause(false);this.pausedFrom=null;this.newMatch()});
+  B('prestart',()=>{if(this.sb){this.sbReset();this.resume();return}this.showPause(false);this.pausedFrom=null;this.newMatch()});
   B('pquit',()=>{if(window.online&&window.online.active)window.online.pauseQuit();else this.quitToTitle()});
   B('pset',()=>this.openSettings());
+  B('bsb',()=>this.openSbSel());B('sbback',()=>{$('sbsel').classList.add('off');$('menu').classList.remove('off')});B('sbreset',()=>this.sbReset());
+  for(const t of Object.keys(DUMMY_TYPES)){B('sbt-'+t,()=>this.startSandbag(t));B('sbk-'+t,()=>this.sbSwitch(t))}
   B('sgclose',()=>this.closeSettings());B('sglog',()=>Settings.set('log',!Settings.log));B('sgcam',()=>Settings.set('cam',!Settings.cam));
   addEventListener('keydown',e=>{if(e.code==='Escape'&&!$('settings').classList.contains('off'))this.closeSettings()});
   document.addEventListener('click',()=>{if(this.state==='cine')this.v.skipCine()})}
@@ -486,6 +542,37 @@ class Game{
  startCine(win){this.state='cine';this.inp.clear();const W=win?this.P:this.C,L=win?this.C:this.P;document.body.classList.add('cine');this.v.playCine(win?'win':'lose',W,L,()=>this.cineDone())}
  cineDone(){this.stopCineUI();this.finishMatch()}
  stopCineUI(){this.v.stopCine();document.body.classList.remove('cine')}
+ /* ---- サンドバッグモード：対人戦と同じ combat()/applyHit() で判定・威力・スタミナを計算する練習モード ---- */
+ openSbSel(){$('menu').classList.add('off');$('sbsel').classList.remove('off')}
+ startSandbag(type){const P=this.P;this.leaveSandbag();['sbsel','setup','over','evo','pause'].forEach(i=>$(i).classList.add('off'));this.stopCineUI();
+  Settings.enterForced();   // 戦闘ログ：開始前の設定を保存し、ONに固定
+  P.newMatch();this.sb={type:null,dummy:null,t:0,stats:null};this.sbMake(type);this.state='sandbag';this.inp.clear();$('log').innerHTML='';
+  $('sbpanel').classList.remove('off');UI.toast('サンドバッグモード：戦闘ログは自動でONです（終了すると元の設定に戻ります）',3200)}
+ sbMake(type){const P=this.P,sb=this.sb;sb.type=type;sb.dummy=new Dummy(type,0,-.2,Math.PI,P);sb.stats=this.sbNewStats();P.newPoint(0,1.15,0);P.st=P.stMax();this.v.setDummy(sb.dummy);this.sbRender()}   // 的はプレイヤーの約1.35m先
+ sbNewStats(){return{n:0,total:0,max:0,by:{},last:null,combo:{n:0,dmg:0,names:[],t:-9},best:{n:0,dmg:0,names:[]}}}
+ sbSwitch(type){if(!this.sb||this.sb.type===type||!DUMMY_TYPES[type])return;this.sbMake(type);UI.toast(DUMMY_TYPES[type],900)}
+ sbReset(){if(!this.sb)return;const D=this.sb.dummy;this.sb.stats=this.sbNewStats();D.sx=D.sz=D.vx=D.vz=D.om=0;D.bv.set(0,0,0);D.rest=false;this.P.st=this.P.stMax();this.sbRender()}
+ sbStep(dt){const sb=this.sb,P=this.P,D=sb.dummy,ip=this.inp.intent();sb.t+=dt;
+  ip.face=Math.atan2(-(D.p.x-P.p.x),-(D.p.z-P.p.z));P.upd(dt,ip,D);D.upd(dt);
+  if(sb.type!=='ball'){const dx=P.p.x-D.base.x,dz=P.p.z-D.base.z,d=Math.hypot(dx,dz);if(d<CFG.minSep&&d>1e-4){P.p.x=D.base.x+dx/d*CFG.minSep;P.p.z=D.base.z+dz/d*CFG.minSep}}   // 動かない的には重ならない
+  const ev=[];combat(P,[D],dt,ev);for(const e of ev){if(e.type==='hit')D.react(e,P);this.onEv(e)}}
+ sbHit(e){const sb=this.sb,S=sb.stats,P=this.P,D=sb.dummy,dist=Math.hypot(P.p.x-D.p.x,P.p.z-D.p.z);
+  S.n++;S.total+=e.dmg;S.max=Math.max(S.max,e.dmg);const b=S.by[e.pid]||(S.by[e.pid]={name:e.punch,n:0,dmg:0,max:0,spd:0});b.n++;b.dmg+=e.dmg;b.max=Math.max(b.max,e.dmg);b.spd+=e.speed;
+  S.last={punch:e.punch,zone:e.zone,speed:e.speed,dmg:e.dmg,dist,tags:e.tags};const c=S.combo;   // コンボ：1秒以内に連続で当てる
+  if(sb.t-c.t>1.0){c.n=0;c.dmg=0;c.names=[]}c.n++;c.dmg+=e.dmg;c.names.push(e.punch);c.t=sb.t;
+  if(c.n>S.best.n||(c.n===S.best.n&&c.dmg>S.best.dmg)){S.best.n=c.n;S.best.dmg=c.dmg;S.best.names=c.names.slice()}
+  this.sbRender()}
+ sbRender(){const sb=this.sb;if(!sb)return;const S=sb.stats,L=S.last,c=S.combo;
+  for(const t of Object.keys(DUMMY_TYPES))$('sbk-'+t).classList.toggle('on',sb.type===t);$('sbname').textContent=DUMMY_TYPES[sb.type];
+  $('sblast').textContent=L?`${L.punch} → ${L.zone}\n速度 ${L.speed.toFixed(1)} m/s ／ ダメージ ${L.dmg.toFixed(1)} ／ 距離 ${L.dist.toFixed(2)} m`+(L.tags.length?'\n'+L.tags.join(' '):''):'まだ当たっていません。パンチを打ってみましょう。';
+  $('sbcombo').textContent=c.n>1?`COMBO ${c.n} HIT ／ 合計 ${c.dmg.toFixed(1)}\n${c.names.join(' → ')}`:(S.best.n>1?`最大コンボ ${S.best.n} HIT ／ 合計 ${S.best.dmg.toFixed(1)}\n${S.best.names.join(' → ')}`:'コンボ：1秒以内に連続で当てると記録されます');
+  const rows=Object.values(S.by).sort((a,b)=>b.n-a.n).map(b=>`<tr><td>${b.name}</td><td>${b.n}</td><td>${(b.dmg/b.n).toFixed(1)}</td><td>${b.max.toFixed(1)}</td><td>${(b.spd/b.n).toFixed(1)}</td></tr>`).join('');
+  $('sbtable').innerHTML=rows?`<table class="tt"><tr><th>パンチ</th><th>回数</th><th>平均DMG</th><th>最大</th><th>平均m/s</th></tr>${rows}<tr><th>合計</th><th>${S.n}</th><th>${(S.total/S.n).toFixed(1)}</th><th>${S.max.toFixed(1)}</th><th></th></tr></table>`:''}
+ sbHud(){const P=this.P;$('mh').style.width='100%';$('ms').style.width=P.st/P.stMax()*100+'%';$('ch').style.width='100%';$('cs2').style.width='100%';
+  $('cn').textContent='サンドバッグ（'+DUMMY_TYPES[this.sb.type]+'）';$('sc').textContent='PRACTICE';$('tm').textContent='∞';$('rd').textContent=''}
+ leaveSandbag(){if(!this.sb)return;this.sb=null;this.v.clearDummy();$('sbpanel').classList.add('off');this.P.newMatch();
+  Settings.exitForced();   // 戦闘ログ：開始前の設定へ戻す（終了・途中終了・他モード開始のどの経路でも、必ずここを通る）
+  this.v.setFighters(this.P,[this.C])}
  fav(){const s=this.P.stat,sc={off:s.punch/10,def:s.guard/4,dodge:s.dodge/3},m=Math.max(sc.off,sc.def,sc.dodge);
   return m>0?Object.keys(sc).find(k=>sc[k]===m):null}
  openEvolve(){this.state='evolve';this.sel=0;this.offs=offer(this.P.picks,this.fav());
@@ -512,7 +599,8 @@ class Game{
   else if(s==='ready'||s==='pointEnd'){P.upd(dt,idleFor(P,C),C);C.upd(dt,idleFor(C,P),P);this.t-=dt;
    if(s==='ready'&&this.t<.6&&!this.fought){this.fought=true;UI.banner('FIGHT!',700,'var(--gold)')}
    if(this.t<=0){if(s==='ready'){this.state='fight'}else this.afterPoint()}}
-  else if(s==='cine'){const ts=this.v.cineTs();P.upd(dt*ts,idleFor(P,C),C);C.upd(dt*ts,idleFor(C,P),P)}}
+  else if(s==='cine'){const ts=this.v.cineTs();P.upd(dt*ts,idleFor(P,C),C);C.upd(dt*ts,idleFor(C,P),P)}
+  else if(s==='sandbag')this.sbStep(dt)}
  endPoint(w){if(this.state!=='fight')return;this.lastW=w;this.inp.clear();
   if(w==='p')this.score.p++;else if(w==='c')this.score.c++;
   this.final=w!=='tie'&&this.round>=this.rounds&&this.score.p!==this.score.c;   // 総ラウンドを終えて勝ち越し＝試合終了（同点なら延長ラウンド）
@@ -525,11 +613,12 @@ class Game{
  detect(att,tgt,byP){const ev=[];combat(att,[tgt],STEP,ev);for(const e of ev)this.onEv(e)}   // 判定ロジックは game-core.js の combat()
  onEv(e){const byP=e.att===this.P.id;
   if(e.type==='dodge'){if(e.id===this.P.id){UI.toast('回避！');SFX.p(620,.07,'sine')}return}
+  if(this.sb&&e.tgt==='s'&&e.type==='hit')this.sbHit(e);
   this.v.spark(new V(e.np[0],e.np[1],e.np[2]),e.blocked);SFX.p(e.blocked?300:110,e.blocked?.08:.13,e.blocked?'triangle':'sawtooth');
   UI.logHit({byPlayer:byP,blocked:e.blocked,zone:e.zone,punch:e.punch,speed:e.speed,dmg:e.dmg,tags:e.tags});
   if(byP){this.v.hitDealt(e);const c=$('cross');c.classList.add('hit');setTimeout(()=>c.classList.remove('hit'),120)}
   else{this.v.hitTaken(e);if(!e.blocked){const f=$('flash');f.style.opacity=1;setTimeout(()=>f.style.opacity=0,90)}}}
- hud(){const P=this.P,C=this.C;$('mh').style.width=P.hp/P.hpMax*100+'%';$('ms').style.width=P.st/P.stMax()*100+'%';
+ hud(){if(this.sb){this.sbHud();return}const P=this.P,C=this.C;$('mh').style.width=P.hp/P.hpMax*100+'%';$('ms').style.width=P.st/P.stMax()*100+'%';
   $('ch').style.width=C.hp/C.hpMax*100+'%';$('cs2').style.width=C.st/C.stMax()*100+'%';
   $('sc').textContent=this.score.p+' - '+this.score.c;$('tm').textContent=Math.max(0,Math.ceil(this.timer));
   $('rd').textContent=`ROUND ${this.round} / ${this.rounds}${this.round>this.rounds?'（延長）':''}`}
