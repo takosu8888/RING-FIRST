@@ -24,7 +24,7 @@ class Room{
  cap(){return 4}
  active(){return[...this.players.values()].filter(p=>!p.gone)}
  freeSlot(){const used=new Set(this.active().map(p=>p.slot));for(let i=0;i<4;i++)if(!used.has(i))return i;return -1}
- add(name,ws){const p={id:'u'+(++NID),name,ws,token:crypto.randomBytes(12).toString('hex'),slot:this.freeSlot(),ready:false,connected:true,dcAt:0,gone:false,chatT:[]};
+ add(name,ws,st){const p={id:'u'+(++NID),name,ws,stance:st==='south'?'south':'orth',token:crypto.randomBytes(12).toString('hex'),slot:this.freeSlot(),ready:false,connected:true,dcAt:0,gone:false,chatT:[]};
   this.players.set(p.id,p);if(!this.hostId)this.hostId=p.id;return p}
  bc(o){const s=JSON.stringify(o);for(const p of this.players.values())if(p.ws&&p.ws.readyState===1)p.ws.send(s)}
  info(){return{t:'room',code:this.code,hostId:this.hostId,mode:this.mode,state:this.state,brawl:ENABLE_BRAWL,rounds:this.rounds,
@@ -46,7 +46,7 @@ class Room{
 class Match{
  constructor(room,ps){
   this.room=room;this.mode=room.mode;this.rounds=room.mode==='duel'?room.rounds:1;this.F=[];this.by=new Map();this.inp=new Map();this.ns={};
-  for(const p of ps){const f=new Fighter(true);f.id=p.id;f.name=p.name;f.slot=p.slot;f.tgtId=null;f.left=false;this.F.push(f);this.by.set(p.id,f);
+  for(const p of ps){const f=new Fighter(true);f.id=p.id;f.name=p.name;f.slot=p.slot;f.stance=p.stance;f.tgtId=null;f.left=false;this.F.push(f);this.by.set(p.id,f);
    this.inp.set(p.id,{mx:0,mz:0,g:0,one:{L:null,R:null,dash:null,sw:0,dk:false}})}
   this.score={};for(const f of this.F)this.score[f.id]=0;
   this.round=1;this.ended=false;this.winner=null;this.tie=false;this.offers={};this.picked=new Set();this.deadline=0;this.out=[];this.evoSet=[];this.tmax=this.mode==='brawl'?BRAWL_TIME:CFG.roundTime;this.beginRound()}
@@ -56,7 +56,7 @@ class Match{
    const s=this.inp.get(f.id);s.one={L:null,R:null,dash:null,sw:0,dk:false}});
   this.state='ready';this.t=1.8;this.timer=this.tmax;this.winner=null;this.tie=false}
  startMsg(){const picks={};for(const f of this.F)picks[f.id]=f.picks.map(p=>({id:p.id,r:p.r}));
-  return{t:'start',mode:this.mode,rounds:this.rounds,fs:this.F.map(f=>({id:f.id,name:f.name,slot:f.slot})),picks,score:this.score}}
+  return{t:'start',mode:this.mode,rounds:this.rounds,fs:this.F.map(f=>({id:f.id,name:f.name,slot:f.slot,sn:f.stance==='south'?1:0})),picks,score:this.score}}
  resync(p){send(p.ws,this.startMsg());if(this.state==='evolve'&&this.offers[p.id]&&!this.picked.has(p.id))send(p.ws,{t:'offers',o:this.offers[p.id],ms:Math.max(0,this.deadline-Date.now())})}
  /* ----- 入力（検証してから保持。ダメージ等は一切受け取らない） ----- */
  input(pid,m){const s=this.inp.get(pid);if(!s)return;const nn=v=>Number.isFinite(v)?clamp(v,-1,1):0;
@@ -162,14 +162,14 @@ function onMsg(ws,m){
  case'create':{
   if(room)return err(ws,'busy','すでにルームに参加しています');
   if(rooms.size>=MAX_ROOMS)return err(ws,'busy','サーバーが混み合っています。しばらくしてからお試しください');
-  const r=new Room(genCode());rooms.set(r.code,r);return attach(ws,r,r.add(clean(m.name,12)||'PLAYER',ws))}
+  const r=new Room(genCode());rooms.set(r.code,r);return attach(ws,r,r.add(clean(m.name,12)||'PLAYER',ws,m.stance))}
  case'join':{
   if(room)return err(ws,'busy','すでにルームに参加しています');
   const r=rooms.get(clean(m.code,6).toUpperCase());
   if(!r)return err(ws,'no_room','ルームが見つかりません。コードを確認してください');
   if(r.state!=='lobby')return err(ws,'in_match','試合中のルームには参加できません');
   if(r.active().length>=r.cap())return err(ws,'full','ルームが満員です');
-  return attach(ws,r,r.add(clean(m.name,12)||'PLAYER',ws))}
+  return attach(ws,r,r.add(clean(m.name,12)||'PLAYER',ws,m.stance))}
  case'rejoin':{
   const r=rooms.get(clean(m.code,6).toUpperCase()),q=r&&typeof m.token==='string'&&r.active().find(x=>x.token===m.token);
   if(!q)return err(ws,'no_session','ルームに復帰できませんでした');
@@ -179,6 +179,7 @@ function onMsg(ws,m){
  }
  if(!p)return;
  switch(m.t){
+ case'stance':if(room.state==='lobby')p.stance=m.v==='south'?'south':'orth';return;   // 構え（オーソドックス/サウスポー）。試合開始時に確定
  case'ready':if(room.state!=='lobby')return;p.ready=!!m.v;return room.bc(room.info());
  case'mode':{if(p.id!==room.hostId||room.state!=='lobby')return;
   const k=m.mode;if(k!=='duel'&&k!=='brawl')return;
