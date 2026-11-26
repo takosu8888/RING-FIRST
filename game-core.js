@@ -19,6 +19,7 @@ const CFG={doubleTapMs:250,faceRate:8,
  dmg:{min:1,max:40,speedRef:7,speedMin:.5,speedMax:1.6,rangeStart:.85,rangeFalloff:.35,
   zone:{head:1.5,chest:1.0,abdomen:1.2,armL:.4,armR:.4},guard:{stam:.5}},
  hitstun:.2,pointsToWin:3,roundTime:60,hp:100,fistR:.1,ringHalf:3.3,minSep:.75,bob:.012,
+ roles:{lead:{ts:1.06,reach:1.04,dmg:.94,cost:.94,whiff:.94},rear:{ts:.95,reach:1,dmg:1.08,cost:1.06,whiff:1.06}},   // 前手：速い・届く・軽い／後手：遅い・重い。構え(オーソドックス/サウスポー)で左右が入れ替わる
  rules:{on:true,                                               // ★false にすると、読み合い改善前の挙動に戻る
   chain:{window:.9,costStep:.18,max:5,lockFrom:3,lockStep:.045}, // 連打：直前から0.9秒以内に打つとスタミナ+18%/回(最大5段)、3連打目以降は攻撃後の隙が増える
   whiffCost:.4,                                                // 空振り：スタミナ消費の40%を追加で失う（＋パンチごとの硬直）
@@ -27,39 +28,34 @@ const CFG={doubleTapMs:250,faceRate:8,
   blockLock:.2,guardBreakStun:.35,guardDrain:2.5,              // ガード：防がれた側の隙/ガードブレイク/ガード維持のスタミナ消費(毎秒)
   gc:{t:.7,speed:.2,pow:.15},                                  // ガード成功後0.7秒の反撃チャンス（速度+20%・威力+15%）
   armMul:.4,                                                   // 腕に当たった時の倍率。ガード成功時も同じ倍率を使い、さらにガード軽減が掛かる（ガードの方が必ず有利）
-  hookLock:{on:true,brake:2.6}}};                              // フック等の入力方向の移動を攻撃中は抑える／踏み込み
+  chipMin:.3}};                                                  // ガードされた時の最小ダメージ（パンチごとのガード圧力を掛ける）
 const STEP=1/120,ZERO=new V();
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),rnd=(a,b)=>a+Math.random()*(b-a);
 const angd=(a,b)=>{let d=a-b;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return d};
 const quad=(a,b,c,t)=>a.clone().multiplyScalar((1-t)*(1-t)).addScaledVector(b,2*(1-t)*t).addScaledVector(c,t*t);
 
 /* ============ パンチ定義（基本威力,[構え,突き,保持,戻し],W,C,A,スタミナ消費） ============ */
-const T={
- JAB:[6,[.04,.12,.02,.14],[.26,1.34,.4],[.15,1.45,.75],[.03,1.55,1.05],6],
- STRAIGHT:[11,[.08,.17,.02,.2],[.3,1.3,.3],[.15,1.45,.75],[-.02,1.52,1.15],10],
- HOOK:[10,[.08,.2,.02,.2],[.5,1.42,.35],[.85,1.5,.65],[-.12,1.55,.85],11],
- HOOKREV:[11,[.1,.22,.02,.22],[.3,1.5,.5],[1.0,1.35,.45],[-.2,1.5,.8],12],
- UPPER:[12,[.22,.2,.02,.34],[.25,.9,.4],[.15,1.0,.75],[-.02,1.5,.85],13],   // 予備動作(構え)を長く(0.1→0.22秒)、戻しも長く(0.22→0.34秒)：近距離の連打で押し切れないように
- BODY:[9,[.08,.16,.02,.2],[.3,1.05,.3],[.15,1.12,.7],[0,1.1,1.1],9],
- BODYHOOK:[10,[.09,.2,.02,.2],[.5,1.12,.3],[.85,1.15,.6],[-.12,1.1,.8],10]};
-// 役割表：rng=[最小射程,最適射程,最大射程](選手間の距離) / baseMul=威力補正 / costMul=スタミナ補正 / whiff=空振り硬直(秒) / pierce=ガード貫通率 / lunge=踏み込み
-const X={JAB:{rng:[.85,1.15,1.4],baseMul:1,costMul:1,whiff:.09,pierce:0,lunge:0},                 // 速い・軽い・消費小。中距離
- STRAIGHT:{rng:[.95,1.3,1.5],baseMul:1.1,costMul:1.2,whiff:.22,pierce:0,lunge:0},                // 長いリーチと威力。空振りが重い
- HOOK:{rng:[.75,.95,1.2],baseMul:1.25,costMul:1.1,whiff:.2,pierce:0,lunge:.7},                   // 近距離で強い。遠いと届かない
- HOOKREV:{rng:[.75,.95,1.2],baseMul:1.2,costMul:1.1,whiff:.22,pierce:0,lunge:.7},
- UPPER:{rng:[.75,.9,1.15],baseMul:.9,costMul:1.75,whiff:.45,hitLock:.3,fwdMul:.45,pierce:.4,lunge:.4},              // 至近距離。ガードを貫く。連発に不向き
- BODY:{rng:[.85,1.1,1.45],baseMul:1.1,costMul:1,whiff:.15,pierce:0,lunge:.6},
- BODYHOOK:{rng:[.75,.95,1.2],baseMul:1.2,costMul:1.05,whiff:.2,pierce:0,lunge:.7}};
+const T={   // [基本威力,[予備動作,突き,保持,戻し 秒],W,C,A,スタミナ]。右手基準の座標（左手はxを反転）。前手/後手の補正は CFG.roles で別に掛かる
+ JAB:[6,[.04,.12,.02,.14],[.26,1.34,.4],[.15,1.45,.75],[.03,1.55,1.05],6],                  // 左ジャブ：素早い・軽い・リーチ長め・消費小
+ STRAIGHT:[13,[.08,.17,.02,.2],[.3,1.3,.3],[.15,1.45,.75],[-.02,1.52,1.15],10],              // 右ストレート：高威力・リーチ長・消費中（主力）
+ UPPERL:[8.5,[.12,.15,.02,.22],[.25,.9,.4],[.15,1.0,.75],[-.02,1.5,.85],9],                  // 左アッパー：近距離・比較的素早い・威力中
+ UPPERR:[12,[.22,.2,.02,.34],[.25,.9,.4],[.15,1.0,.75],[-.02,1.5,.85],18],                   // 右アッパー：近距離・高威力・予備動作と隙と消費が大きい
+ HOOKL:[8.5,[.1,.18,.02,.2],[.5,1.42,.35],[.9,1.5,.7],[-.12,1.55,.95],9],                    // 左フック：横から・ガードへの圧力・中距離
+ HOOKR:[14,[.14,.22,.02,.26],[.5,1.42,.35],[.95,1.5,.65],[-.12,1.55,.9],15]};                // 右フック：高威力・消費と隙が大きい（大きなチャンス用）
+// 役割表：rng=[最小射程,最適射程,最大射程](選手間の距離。最大射程は突きの到達距離＋当たり判定と一致) / whiff=空振り硬直 / hitLock=命中後の隙 / pierce=ガード貫通 / gp=ガード圧力(ガードされた時のスタミナ消耗・最小ダメージ倍率)
+const X={JAB:{rng:[.85,1.15,1.4],baseMul:1,costMul:1,whiff:.09,hitLock:.04,pierce:0,gp:1},
+ STRAIGHT:{rng:[.95,1.3,1.5],baseMul:1,costMul:1,whiff:.22,hitLock:.06,pierce:0,gp:1},
+ UPPERL:{rng:[.7,.88,1.12],baseMul:1,costMul:1,whiff:.26,hitLock:.14,pierce:.3,gp:1},
+ UPPERR:{rng:[.7,.88,1.12],baseMul:1,costMul:1,whiff:.45,hitLock:.3,pierce:.45,gp:1},
+ HOOKL:{rng:[.85,1.05,1.3],baseMul:1,costMul:1,whiff:.18,hitLock:.06,pierce:0,gp:1.7},
+ HOOKR:{rng:[.8,1.0,1.25],baseMul:1,costMul:1,whiff:.38,hitLock:.2,pierce:0,gp:1.3}};
 const PUNCHES={};
 (function(){const mk=(id,name,hand,k)=>{const [base,t,W,C,A,cost]=T[k],m=hand==='L'?-1:1,f=p=>new V(p[0]*m,p[1],p[2]);
- PUNCHES[id]={id,name,hand,base,cost,t,dur:t[0]+t[1]+t[2]+t[3],W:f(W),C:f(C),A:f(A),reach:Math.hypot(A[0],A[2]),x:X[k],mod:null}};
- mk('L_JAB','左ジャブ','L','JAB');mk('L_UPPER','左アッパー','L','UPPER');mk('L_HOOK','左フック','L','HOOK');
- mk('L_HOOK_REV','左フック(逆体重)','L','HOOKREV');mk('L_BODY','左ボディストレート','L','BODY');
- mk('R_STRAIGHT','右ストレート','R','STRAIGHT');mk('R_UPPER','右アッパー','R','UPPER');mk('R_BODYHOOK','右ボディフック','R','BODYHOOK');
- mk('R_HOOK','右フック','R','HOOK');mk('R_BODY','右ボディストレート','R','BODY')})();
-const PM={J:{none:'L_JAB',w:'L_UPPER',a:'L_HOOK',s:'L_HOOK_REV',d:'L_BODY'},K:{none:'R_STRAIGHT',w:'R_UPPER',a:'R_BODYHOOK',s:'R_HOOK',d:'R_BODY'}};
-const PRI=['w','s','a','d'];
-for(const key in PM)for(const dir in PM[key])PUNCHES[PM[key][dir]].mod=dir==='none'?null:dir;   // パンチの種類を決めた方向キー（フック等の移動抑制に使う）
+ PUNCHES[id]={id,name,hand,base,cost,t,dur:t[0]+t[1]+t[2]+t[3],W:f(W),C:f(C),A:f(A),reach:Math.hypot(A[0],A[2]),x:X[k]}};
+ mk('L_JAB','左ジャブ','L','JAB');mk('R_STRAIGHT','右ストレート','R','STRAIGHT');mk('L_UPPER','左アッパー','L','UPPERL');
+ mk('R_UPPER','右アッパー','R','UPPERR');mk('L_HOOK','左フック','L','HOOKL');mk('R_HOOK','右フック','R','HOOKR')})();
+const PUNCH_KEYS={j:'L_JAB',k:'R_STRAIGHT',u:'L_UPPER',i:'R_UPPER',n:'L_HOOK',m:'R_HOOK'};   // キー→パンチ。移動キー(WASD)とは完全に独立
+
 
 /* ============ 進化能力（データ駆動） ============ */
 const RN=['Common','Rare','Epic','Legendary'],RC=['#9aa4bd','#4a8fe8','#b266e8','#e8b04a'];
@@ -119,8 +115,8 @@ function segDist(p1,q1,p2,q2){
 let PID=0;
 const IDLE={mx:0,mz:0,punch:{},guard:0,sway:0,duck:false};
 class Fighter{
- constructor(isP){this.isP=isP;this.picks=[];this.M=calc([]);this.bonus=null;this.off=new V();this.newPoint(0,0,0)}
- newMatch(){this.picks=[];this.M=calc([]);this.applyBonus()}
+ constructor(isP){this.isP=isP;this.picks=[];this.M=calc([]);this.bonus=null;this.stance='orth';this.infStam=false;this.off=new V();this.newPoint(0,0,0)}
+ newMatch(){this.picks=[];this.M=calc([]);this.infStam=false;this.applyBonus()}   // 無限スタミナ(サンドバッグ用)は新しい試合で必ず解除
  setPicks(){this.M=calc(this.picks);this.applyBonus()}
  applyBonus(){const b=this.bonus;if(b)for(const k in b)this.M[k]=(this.M[k]||0)+b[k]}   // CPU難易度「激ムズ」の基礎能力補正
  stMax(){return CFG.stam.max+this.M.sm}
@@ -128,12 +124,13 @@ class Fighter{
   this.st=this.stMax();this.stDelay=0;this.exh=false;this.dash={t:0,cd:0,dir:new V()};this.gb=0;this.gh=0;this.shake=0;this.koT=0;
   this.q={L:null,R:null};this.lock=0;this.stun=0;this.swCd=0;this.dkCd=0;this.sw=null;this.dk=null;this.counterT=0;this.ambT=0;this.revT=0;
   this.combo=0;this.comboT=0;this.chain=0;this.chainT=0;this.hist=[];this.gcT=0;this.tNow=0;this.off.set(0,0,0);this.stat={punch:0,guard:0,dodge:0};
-  const H=()=>({act:false,def:null,t:0,hit:false,dg:{},prev:new V(),speed:0,sp0:false,first:false,id:0,aim:0,ph:'',live:false,u:0,ext:0,stale:0,local:new V()});
+  const H=()=>({act:false,def:null,t:0,hit:false,dg:{},prev:new V(),speed:0,sp0:false,first:false,id:0,aim:0,ph:'',live:false,u:0,ext:0,stale:0,lead:true,tsc:1,rch:1,dmgMul:1,whMul:1,local:new V()});
   this.h={L:H(),R:H()};for(const k of['L','R'])this.h[k].local=this.handLocal(k)}
  fwd(){return new V(-Math.sin(this.yaw),0,-Math.cos(this.yaw))}
  right(){return new V(Math.cos(this.yaw),0,-Math.sin(this.yaw))}
  toWorld(l,no){const o=no?ZERO:this.off,f=this.fwd(),r=this.right(),x=l.x+o.x;return new V(this.p.x+r.x*x+f.x*l.z,l.y+o.y,this.p.z+r.z*x+f.z*l.z)}
  punching(){return this.h.L.act||this.h.R.act}
+ isLead(k){return k===(this.stance==='south'?'R':'L')}   // 前手：オーソドックス=左／サウスポー=右
  guardMode(){return this.gb>.5&&this.st>0?(this.gh>.5?2:1):0}
  pSpeed(){const F=this.M.f;let s=1+this.M.ps;if(F.combo)s+=this.combo*(F.rhythm?.08:.05);if(F.desp&&this.st<30)s+=.25;
   if(F.berserk&&this.hp<this.hpMax*.4)s+=.35;if(F.revenge&&this.revT>0)s+=.25;if(CFG.rules.on&&this.gcT>0)s+=CFG.rules.gc.speed;if(this.st<CFG.stam.low)s*=.85;return s}
@@ -141,16 +138,17 @@ class Fighter{
  onDodge(){if(this.M.f.counter)this.counterT=1.5;this.stat.dodge+=.5}
  startPunch(k,id,opp){const h=this.h[k],d=PUNCHES[id];h.act=true;h.def=d;h.t=0;h.hit=false;h.dg={};h.speed=0;h.sp0=false;h.first=true;h.id=++PID;
   this.gb=0;this.gh=0;this.stat.punch++;this.stDelay=CFG.stam.delay;
-  const R=CFG.rules;let cost=d.cost*(1+this.M.cm);
+  const R=CFG.rules,lead=this.isLead(k),role=lead?CFG.roles.lead:CFG.roles.rear;h.lead=lead;h.tsc=role.ts;h.rch=role.reach;h.dmgMul=role.dmg;h.whMul=role.whiff;   // 前手/後手の補正
+  let cost=d.cost*(1+this.M.cm)*role.cost;
   if(R.on){this.chain=this.chainT>0?Math.min(R.chain.max,this.chain+1):0;this.chainT=R.chain.window;cost*=d.x.costMul*(1+R.chain.costStep*this.chain);
    this.hist=this.hist.filter(e=>this.tNow-e.t<3);this.hist.push({id,t:this.tNow});let run=0;for(let i=this.hist.length-1;i>=0&&this.hist[i].id===id;i--)run++;h.stale=run;
-   if(R.hookLock.on&&d.mod&&d.x.lunge&&Math.hypot(opp.p.x-this.p.x,opp.p.z-this.p.z)>CFG.minSep+.15)this.kick.addScaledVector(this.fwd(),d.x.lunge)}   // 自然な踏み込み
-  this.st=Math.max(0,this.st-cost);
-  const dv=opp.p.clone().sub(this.p),lat=dv.dot(this.right()),fw=Math.max(dv.dot(this.fwd()),.5);h.aim=clamp(lat/fw,-.5,.5)*(this.isP?.6:1)}
+  }
+  if(!this.infStam)this.st=Math.max(0,this.st-cost);
+  const dv=opp.p.clone().sub(this.p),lat=dv.dot(this.right()),fw=Math.max(dv.dot(this.fwd()),.5);h.aim=clamp(lat/fw,-.5,.5)*(this.isP?.6:(this.aimK==null?1:this.aimK))+(this.aimErr?(Math.random()*2-1)*this.aimErr:0)}   // CPUは追尾を弱め、狙いに誤差を持たせる
  handLocal(k){
-  const h=this.h[k],m=k==='L'?-1:1,N=new V(.22*m,1.3,.58),Gb=new V(.2*m,1.4,.55),Gh=new V(.14*m,1.52,.46);
+  const h=this.h[k],m=k==='L'?-1:1,ld=this.isLead(k),N=new V((ld?.24:.17)*m,ld?1.32:1.38,ld?.66:.46),Gb=new V(.2*m,1.4,.55),Gh=new V(.14*m,1.52,.46);
   if(!h.act){h.ph='';h.live=false;h.ext=0;h.u=0;return N.lerp(Gb,this.gb).lerp(Gh,this.gh)}
-  const d=h.def,[w,s,ho,rt]=d.t,t=h.t,a=h.aim,ap=p=>p.clone().setX(p.x+a*p.z),W=ap(d.W),C=ap(d.C),A=ap(d.A);
+  const d=h.def,[w,s,ho,rt]=d.t,t=h.t,a=h.aim,ap=p=>{const q=p.clone();q.z*=h.rch||1;return q.setX(q.x+a*q.z)},W=ap(d.W),C=ap(d.C),A=ap(d.A);
   h.live=false;h.u=0;
   if(t<w){h.ph='w';h.ext=0;const u=t/w;return N.lerp(W,1-(1-u)*(1-u))}
   if(t<w+s){h.ph='s';const u=(t-w)/s;h.u=u;h.ext=u;h.live=u>.25;return quad(W,C,A,Math.pow(u,1.6))}
@@ -158,12 +156,13 @@ class Fighter{
   h.ph='r';const v=clamp((t-w-s-ho)/rt,0,1);h.ext=1-v;return quad(A,C.clone().lerp(N,.5),N,v*v*(3-2*v))}
  upd(dt,I,opp){
   const al=this.hp>0,M=this.M,F=M.f;if(!al)I=IDLE;
-  if(I.face!=null&&al)this.yaw+=angd(I.face,this.yaw)*Math.min(1,dt*CFG.faceRate);
+  if(I.face!=null&&al)this.yaw+=angd(I.face,this.yaw)*Math.min(1,dt*CFG.faceRate*(I.faceScale==null?1:I.faceScale));
   this.lock-=dt;this.stun-=dt;this.stDelay-=dt;this.dash.cd-=dt;this.swCd-=dt;this.dkCd-=dt;this.counterT-=dt;this.ambT-=dt;this.revT-=dt;this.comboT-=dt;this.chainT-=dt;this.gcT-=dt;this.tNow+=dt;
   if(this.comboT<=0)this.combo=0;
   const R=CFG.rules;
   if(R.on&&this.gb>.5)this.st=Math.max(0,this.st-R.guardDrain*dt);   // ガード維持はスタミナを消費し、回復しない
   else if(this.stDelay<=0)this.st=Math.min(this.stMax(),this.st+CFG.stam.regen*(1+M.sr)*(F.desp?.8:1)*(this.gb>.5?.5:1)*dt);
+  if(this.infStam){this.st=this.stMax();this.exh=false}
   if(this.st<=0)this.exh=true;else if(this.exh&&this.st>=20)this.exh=false;
   if(this.gb>.5)this.stat.guard+=dt;
   const free=this.lock<=0&&this.stun<=0&&al,cm=1+M.cm,f=this.fwd(),r=this.right();
@@ -181,11 +180,10 @@ class Fighter{
    if(u>=1){this.dk=null;this.lock=Math.max(this.lock,.1*(1-M.rc))}}
   this.off.set(ox,oy,0);
   if(this.dash.t>0){this.v.copy(this.dash.dir).multiplyScalar(CFG.dash.dist*(1+M.ds)/CFG.dash.time);this.dash.t-=dt}
-  else{let mx=I.mx,mz=I.mz,brake=1;   // フック等：パンチの種類を決めた方向（A/D/S）への移動入力は、構え〜突きの間は無視し、慣性も素早く止める
-   if(R.on&&R.hookLock.on)for(const k of['L','R']){const h=this.h[k];if(h.act&&h.def.mod&&h.ph!=='r'){const m=h.def.mod;if(m==='w')mz*=h.def.x.fwdMul||1;else{if(m==='a'||m==='d')mx=0;else mz=0;brake=R.hookLock.brake}}}   // アッパーは前進の勢いだけ抑える（近づきながらの連打を防ぐ）
+  else{let mx=I.mx,mz=I.mz;   // 移動は攻撃から完全に独立（パンチ入力で移動が変わらない）
    const l=Math.hypot(mx,mz),s=l>1?1/l:1,
    sp=CFG.move.speed*(1+M.mv)*(this.gb>.5?.55*(1-M.gp):1)*(this.stun>0?.4:1)*(this.sw||this.dk?.5:1);
-   this.v.lerp(r.clone().multiplyScalar(mx*s*sp).addScaledVector(f,mz*s*sp),1-Math.exp(-CFG.move.accel*brake*dt))}
+   this.v.lerp(r.clone().multiplyScalar(mx*s*sp).addScaledVector(f,mz*s*sp),1-Math.exp(-CFG.move.accel*dt))}
   this.p.addScaledVector(this.v,dt).addScaledVector(this.kick,dt);this.kick.multiplyScalar(Math.exp(-8*dt));
   this.p.x=clamp(this.p.x,-CFG.ringHalf,CFG.ringHalf);this.p.z=clamp(this.p.z,-CFG.ringHalf,CFG.ringHalf);
   const dx=this.p.x-opp.p.x,dz=this.p.z-opp.p.z,dd=Math.hypot(dx,dz);
@@ -196,7 +194,7 @@ class Fighter{
    if(q){q.ttl-=dt;if(q.ttl<=0)this.q[k]=q=null}
    if(q&&h.act&&h.t>h.def.dur-h.def.t[3]*.4)this.endPunch(h);
    if(q&&!h.act&&free&&this.lock<=0&&!this.sw&&!this.dk&&this.st>=PUNCHES[q.id].cost*.6){this.startPunch(k,q.id,opp);this.q[k]=null}
-   if(h.act){h.t+=dt*ps;if(h.t>=h.def.dur)this.endPunch(h)}}
+   if(h.act){h.t+=dt*ps*(h.tsc||1);if(h.t>=h.def.dur)this.endPunch(h)}}
   const gt=I.guard&&!this.punching()&&!this.sw&&!this.dk?1:0;
   this.gb+=(gt-this.gb)*(1-Math.exp(-18*dt));this.gh+=((gt&&I.guard===2?1:0)-this.gh)*(1-Math.exp(-18*dt));
   this.shake*=Math.exp(-7*dt);if(!al)this.koT+=dt;
@@ -204,15 +202,15 @@ class Fighter{
  endPunch(h,intr){h.act=false;const M=this.M,R=CFG.rules,d=h.def;
   if(!h.hit){
    if(!R.on)this.lock=Math.max(this.lock,(.12+(M.f.breaker?.15:0))*(1-M.rc));
-   else if(!intr){this.lock=Math.max(this.lock,(d.x.whiff+(M.f.breaker?.15:0))*(1-M.rc));   // 空振り：パンチごとの隙＋スタミナ追加消費
-    this.st=Math.max(0,this.st-d.cost*R.whiffCost);this.stDelay=Math.max(this.stDelay,CFG.stam.delay)}
+   else if(!intr){this.lock=Math.max(this.lock,(d.x.whiff*(h.whMul||1)+(M.f.breaker?.15:0))*(1-M.rc));   // 空振り：パンチごとの隙＋スタミナ追加消費
+    if(!this.infStam)this.st=Math.max(0,this.st-d.cost*R.whiffCost);this.stDelay=Math.max(this.stDelay,CFG.stam.delay)}
    this.combo=0}
   else this.lock=Math.max(this.lock,R.on&&d.x.hitLock?d.x.hitLock*(1-M.rc):.04);   // 命中後の隙（アッパーは大きい）
   if(R.on&&!intr&&this.chain>=R.chain.lockFrom)this.lock=Math.max(this.lock,(this.chain-R.chain.lockFrom+1)*R.chain.lockStep*(1-M.rc))}   // 連打の後の隙
  snap(){const r=n=>Math.round(n*1000)/1000,H=k=>{const h=this.h[k];return[h.act?1:0,h.def?h.def.id:'',r(h.ext),r(h.local.x),r(h.local.y),r(h.local.z),r(h.u),h.ph]};
-  return{id:this.id,p:[r(this.p.x),r(this.p.z)],y:r(this.yaw),v:[r(this.v.x),r(this.v.z)],o:[r(this.off.x),r(this.off.y)],gb:r(this.gb),gh:r(this.gh),
+  return{id:this.id,p:[r(this.p.x),r(this.p.z)],y:r(this.yaw),v:[r(this.v.x),r(this.v.z)],o:[r(this.off.x),r(this.off.y)],sn:this.stance==='south'?1:0,gb:r(this.gb),gh:r(this.gh),
    hp:r(this.hp),hm:this.hpMax,st:r(this.st),ex:this.exh?1:0,sk:r(this.shake),ko:r(this.koT),h:[H('L'),H('R')],cb:this.combo}}
- applySnap(s){this.p.x=s.p[0];this.p.z=s.p[1];this.yaw=s.y;this.v.x=s.v[0];this.v.z=s.v[1];this.off.set(s.o[0],s.o[1],0);this.gb=s.gb;this.gh=s.gh;
+ applySnap(s){this.p.x=s.p[0];this.p.z=s.p[1];this.yaw=s.y;this.v.x=s.v[0];this.v.z=s.v[1];this.off.set(s.o[0],s.o[1],0);this.stance=s.sn?'south':'orth';this.gb=s.gb;this.gh=s.gh;
   this.hp=s.hp;this.hpMax=s.hm;this.st=s.st;this.exh=!!s.ex;this.shake=s.sk;this.koT=s.ko;this.combo=s.cb;
   [['L',0],['R',1]].forEach(([k,i])=>{const a=s.h[i],h=this.h[k];h.act=!!a[0];h.def=a[1]?PUNCHES[a[1]]:null;h.ext=a[2];h.local.set(a[3],a[4],a[5]);h.u=a[6];h.ph=a[7]})}
  zones(no){const l=(x,y,z)=>this.toWorld(new V(x,y,z),no),Z=[],pt=(n,k,y,r,b)=>{const c=l(0,y,0);Z.push({n,k,a:c,b:c,r,bias:b||0})};
@@ -227,15 +225,15 @@ const STY={
  power:{d:1.15,n:'パワー型',cool:[.8,1.5],cp:.15,gp:.3,ev:.25,pref:['pow','breaker','berserk','desp']},
  counter:{d:1.35,n:'カウンター型',cool:[.7,1.3],cp:.3,gp:.15,ev:.7,pref:['dod','counter','phantom','ambush']},
  guard:{d:1.4,n:'防御型',cool:[.8,1.4],cp:.3,gp:.65,ev:.25,pref:['grd','revenge','stm','reg']}};
-const ATK={combo:[['L','L_JAB'],['L','L_JAB'],['R','R_STRAIGHT'],['L','L_HOOK']],power:[['R','R_STRAIGHT'],['R','R_HOOK'],['L','L_HOOK'],['R','R_UPPER'],['L','L_UPPER']],
- counter:[['L','L_JAB'],['R','R_STRAIGHT'],['R','R_HOOK']],guard:[['L','L_JAB'],['R','R_STRAIGHT'],['L','L_BODY']]};
-const BODY=[['L','L_BODY'],['R','R_BODY'],['R','R_BODYHOOK']];
+const ATK={combo:[['L','L_JAB'],['L','L_JAB'],['R','R_STRAIGHT'],['L','L_HOOK'],['L','L_UPPER']],power:[['R','R_STRAIGHT'],['R','R_HOOK'],['L','L_HOOK'],['R','R_UPPER'],['L','L_UPPER']],
+ counter:[['L','L_JAB'],['R','R_STRAIGHT'],['R','R_HOOK'],['L','L_UPPER']],guard:[['L','L_JAB'],['R','R_STRAIGHT'],['L','L_HOOK'],['L','L_UPPER']]};
+const BODY=[['L','L_HOOK'],['R','R_UPPER'],['L','L_UPPER']];   // ガードの固い相手への圧力技（フック＝ガード圧力、アッパー＝貫通）
 /* ---- CPU難易度。「激ムズ」は「つよい」と同じ判断力＋基礎能力補正（bonus）。補正は画面にも表示される ---- */
 const DIFF={
- easy:{n:'よわい',rt:[.32,.5],miss:.35,ev:.55,gp:.5,cool:1.8,cp:.35,learn:0,punish:0,space:0,tired:45,pick:0,move:.5},
- normal:{n:'ふつう',rt:[.14,.3],miss:.12,ev:1,gp:1,cool:1,cp:1,learn:.5,punish:.45,space:.4,tired:28,pick:.6,move:1},
- hard:{n:'つよい',rt:[.1,.22],miss:.05,ev:1.15,gp:1.1,cool:.85,cp:1,learn:1,punish:1,space:1,tired:30,pick:1,move:1},
- insane:{n:'激ムズ',rt:[.1,.22],miss:.05,ev:1.15,gp:1.1,cool:.85,cp:1,learn:1,punish:1,space:1,tired:30,pick:1,move:1,
+ easy:{aimErr:.18,n:'よわい',rt:[.32,.5],miss:.35,ev:.55,gp:.5,cool:1.8,cp:.35,learn:0,punish:0,space:0,tired:45,pick:0,move:.5},
+ normal:{aimErr:.1,n:'ふつう',rt:[.14,.3],miss:.12,ev:1,gp:1,cool:1,cp:1,learn:.5,punish:.45,space:.4,tired:28,pick:.6,move:1},
+ hard:{aimErr:.05,n:'つよい',rt:[.1,.22],miss:.05,ev:1.15,gp:1.1,cool:.85,cp:1,learn:1,punish:1,space:1,tired:30,pick:1,move:1},
+ insane:{aimErr:.05,n:'激ムズ',rt:[.1,.22],miss:.05,ev:1.15,gp:1.1,cool:.85,cp:1,learn:1,punish:1,space:1,tired:30,pick:1,move:1,
   bonus:{pw:.05,ps:.03,mv:.04,sm:8,sr:.06,hp:6},bonusText:'威力+5% ／ 攻撃速度+3% ／ 移動+4% ／ スタミナ+8・回復+6% ／ HP+6'}};
 class AI{
  constructor(key,diff){this.key=key;this.S=STY[key];this.dk=DIFF[diff]?diff:'normal';this.D=DIFF[this.dk];this.mem=[];this.reset()}
@@ -262,14 +260,14 @@ class AI{
   for(const id in W){const d=PUNCHES[id],[mn,ide,mx]=d.x.rng;
    let w=W[id],suit=dist<mn-.08||dist>mx+.05?.04:.25+.75*Math.max(0,1-Math.abs(dist-ide)/Math.max(.2,mx-mn));
    w*=1-(1-suit)*D.pick;
-   if(ob.guard*D.learn>.4){if(d.mod==='d'||d.mod==='a'&&d.hand==='R'||id.includes('UPPER'))w*=2.6;else if(id.endsWith('JAB'))w*=.5}
+   if(ob.guard*D.learn>.4){if(d.x.gp>1.2||d.x.pierce>0)w*=2.6;else if(id.endsWith('JAB'))w*=.5}
    if(this.mine.slice(-2).includes(id))w*=.35;
    if(me.st<45&&d.cost>9)w*=.55;
    ws.push([id,w]);tot+=w}
   let r=Math.random()*tot;for(const [id,w] of ws){r-=w;if(r<=0)return id}return ws[0][0]}
  think(me,op,dt){
   const S=this.S,D=this.D,ob=this.ob,I={mx:0,mz:0,punch:{},guard:0,dash:null,sway:0,duck:false},dx=op.p.x-me.p.x,dz=op.p.z-me.p.z,dist=Math.hypot(dx,dz);
-  I.face=Math.atan2(-dx,-dz);this.t+=dt;this.cool-=dt;this.rec-=dt;this.stT-=dt;this.dcd-=dt;
+  I.face=Math.atan2(-dx,-dz);I.faceScale=me.punching()?.3:1;me.aimK=.6;me.aimErr=D.aimErr==null?.1:D.aimErr;this.t+=dt;   // 攻撃中は相手を追尾しすぎない／狙いに誤差を持たせるthis.cool-=dt;this.rec-=dt;this.stT-=dt;this.dcd-=dt;
   this.observe(me,op,dt,dist);
   for(const k of['L','R']){const h=op.h[k];   // 相手のパンチ開始を「見てから」反応（難易度で反応時間が変わる）
    if(h.act&&h.id!==this.seen&&dist<2.2&&(h.ph==='w'||h.ph==='s')){this.seen=h.id;this.rt=rnd(D.rt[0],D.rt[1]);this.tg=h.def.A.y>1.35?'head':'body';this.mem.push(this.tg);if(this.mem.length>10)this.mem.shift()}}
@@ -289,12 +287,24 @@ class AI{
   if(go){const id=this.pickPunch(me,op,dist),d=PUNCHES[id];I.punch[d.hand]=id;this.mine.push(id);if(this.mine.length>6)this.mine.shift();
    const cp=S.cp*D.cp*(me.chain>=2?.3:1)*(me.st<50?.6:1);if(Math.random()<cp)this.combo={t:.2};
    this.cool=rnd(S.cool[0],S.cool[1])*D.cool*(1+.15*me.chain);this.rec=D.space>0&&me.chain>=2?.5:.35}
-  /* 距離管理：スタイルごとの得意距離。連打されている/スタミナが少ないと距離を取る。つよい以上は後ろへダッシュも使う */
-  let want=S.d;if(D.space>0){want+=.25*D.space*Math.min(1,ob.rate/3);if(me.st<40)want+=.2}
-  if(tired&&dist<2.2)I.mz=-1;else if(this.rec>0)I.mz=-.5;else if(dist>want+.35)I.mz=1;else if(dist<want-.2)I.mz=-1;
+  /* 距離管理：スタイル別の理想距離を中心に、近すぎ/遠すぎの幅を分けて小刻みな前後移動を抑える。
+     相手の連打・自分のスタミナ・反撃チャンスに応じて距離を変え、棒立ちの追いかけ合いを減らす。 */
+  const pressure=clamp(ob.rate/2.5,0,1);
+  let want=S.d;
+  if(D.space>0){
+   want+=D.space*(.20*pressure+(me.st<40?.16:0));
+   if(this.pnGo&&this.punishT>0)want-=.12*D.punish;   // 相手の隙を見たら一歩踏み込む
+   if(ob.guard>.55)want+=.05*D.learn;                 // ガードが多い相手には正面から密着しすぎない
+  }
+  const inner=want-.17,outer=want+.22;
+  if(tired){if(dist<outer+.18)I.mz=-.75;else if(dist>outer+.5)I.mz=.35}
+  else if(this.rec>0){if(dist<outer)I.mz=-.45;else if(dist>outer+.22)I.mz=.35}
+  else if(dist>outer)I.mz=1;
+  else if(dist<inner)I.mz=-.8;
+  else I.mz=0;
   if(D.space>.5&&dist<.95&&ob.rate>2&&this.dcd<=0&&!I.guard&&Math.random()<.01){I.dash={x:Math.random()<.5?-1:1,z:-1};this.dcd=1.4}
   if(this.stT<=0){this.sg=D.move<1&&Math.random()<.7?0:[-1,0,1][Math.floor(Math.random()*3)];this.stT=rnd(.6,1.6)}
-  if(!I.guard)I.mx=this.sg*.6;
+  if(!I.guard)I.mx=this.sg*(dist<2?.48:.65);
   return I}
 }
 
@@ -312,21 +322,35 @@ const DUMMY_TYPES={bag:'ヘビーバッグ',ball:'リフレックスボール',s
 class Dummy extends Fighter{
  constructor(type,x,z,yaw,owner){super(false);this.type=DUMMY_TYPES[type]?type:'bag';this.isDummy=true;this.id='s';this.owner=owner||null;
   this.newPoint(x,z,yaw);this.hpMax=1e9;this.hp=1e9;this.base=new V(x,0,z);this.sx=0;this.sz=0;this.vx=0;this.vz=0;this.phi=0;this.om=0;this.bp=new V(x,1.5,z);this.bv=new V();this.rest=false;
+  this.ballNext=rnd(.45,.9);this.ballPhase=rnd(0,Math.PI*2);
+  this.standBurst=0;this.standNext=rnd(.4,1);this.standDir=Math.random()<.5?-1:1;this.standHitT=0;this.standPhase=rnd(0,Math.PI*2);
   for(const k of['L','R'])this.h[k].local=this.handLocal(k)}
  restPos(){const o=this.owner,f=o.fwd();return new V(o.p.x+f.x*1.1,1.5,o.p.z+f.z*1.1)}   // ボールの定位置＝プレイヤーの顔の前
  upd(dt){this.hp=this.hpMax;this.stun=0;this.kick.set(0,0,0);this.shake*=Math.exp(-6*dt);this.tNow+=dt;
   if(this.type==='bag'){   // 吊り下げ：振り子（周期は約2.8秒、ゆっくり減衰）
    for(const a of['x','z']){const s='s'+a,v='v'+a;this[v]+=(-5.2*this[s]-.55*this[v])*dt;this[s]=clamp(this[s]+this[v]*dt,-.6,.6)}
    this.p.x=this.base.x+1.25*this.sx;this.p.z=this.base.z+1.25*this.sz}
-  else if(this.type==='ball'){   // ヘッドバンドの紐につながったボール：弾んで元の位置へ戻る
-   const o=this.owner;if(o){const r=this.restPos();if(!this.rest){this.bp.copy(r);this.rest=true}
-    const a=r.clone().sub(this.bp).multiplyScalar(70).addScaledVector(this.bv,-5.5);this.bv.addScaledVector(a,dt);this.bp.addScaledVector(this.bv,dt);
+  else if(this.type==='ball'){   // リフレックスボール：自発的な小さな揺れ＋不規則な弾み。打つと大きく跳ね、紐の範囲内で戻る
+   const o=this.owner;if(o){
+    if(!this.rest){this.bp.copy(this.restPos());this.rest=true}
+    this.ballNext-=dt;
+    if(this.ballNext<=0){const a=rnd(-Math.PI,Math.PI),sp=rnd(.65,1.05);this.bv.x+=Math.cos(a)*sp;this.bv.z+=Math.sin(a)*sp;this.bv.y+=rnd(-.18,.28);this.ballNext=rnd(.55,1.05)}
+    const r=this.restPos();
+    r.x+=Math.sin(this.tNow*2.1+this.ballPhase)*.10;
+    r.z+=Math.sin(this.tNow*1.7+this.ballPhase*1.3)*.07;
+    r.y+=Math.sin(this.tNow*3+this.ballPhase)*.045;
+    const a=r.clone().sub(this.bp).multiplyScalar(48).addScaledVector(this.bv,-7.2);this.bv.addScaledVector(a,dt);this.bp.addScaledVector(this.bv,dt);
     const anc=new V(o.p.x,1.75,o.p.z),d=this.bp.clone().sub(anc),L=d.length();   // 紐の長さ（1.6m）を超えない
     if(L>1.6){d.multiplyScalar(1/L);this.bp.copy(anc).addScaledVector(d,1.6);const vr=this.bv.dot(d);if(vr>0)this.bv.addScaledVector(d,-vr)}
     this.bp.y=clamp(this.bp.y,.3,2.2)}
    this.p.x=this.bp.x;this.p.z=this.bp.z}
-  else if(this.type==='stand'){   // 回転バー：当てると回り、だんだん止まる
-   this.phi+=this.om*dt;this.om*=Math.exp(-.45*dt);if(Math.abs(this.om)<.02)this.om=0;this.p.x=this.base.x;this.p.z=this.base.z}
+  else if(this.type==='stand'){   // スパーリングスタンド：ゆっくり回る時間と素早く掃く時間を切り替え、命中時は強く回転
+   this.standNext-=dt;
+   if(this.standNext<=0){if(Math.random()<.48)this.standDir*=-1;this.standBurst=rnd(.35,.7);this.standNext=rnd(1.15,2.05)}
+   if(this.standHitT>0){this.standHitT=Math.max(0,this.standHitT-dt);this.om*=Math.exp(-.9*dt)}
+   else if(this.standBurst>0){this.standBurst-=dt;const target=this.standDir*(2.35+.75*Math.sin(this.tNow*4+this.standPhase));this.om+=(target-this.om)*Math.min(1,dt*3.2)}
+   else{const target=Math.sin(this.tNow*1.05+this.standPhase)*.45;this.om+=(target-this.om)*Math.min(1,dt*1.8)}
+   this.om=clamp(this.om,-8,8);this.phi+=this.om*dt;this.p.x=this.base.x;this.p.z=this.base.z}
   for(const k of['L','R'])this.h[k].local=this.handLocal(k)}
  zones(no){const Z=[],S=(n,x,y,z,r)=>{const c=new V(x,y,z);Z.push({n,k:'chest',a:c,b:c,r,bias:0})};   // 器具は部位倍率を1.0（胸）に統一して威力を比べやすくする
   if(this.type==='human')return Fighter.prototype.zones.call(this,no);   // 人型：頭・胸・腹・腕の部位別（対人戦と同じ倍率）
@@ -338,7 +362,7 @@ class Dummy extends Fighter{
  react(e,att){const dx=this.p.x-att.p.x,dz=this.p.z-att.p.z,d=Math.hypot(dx,dz)||1,ux=dx/d,uz=dz/d,m=e.dmg;this.shake=1;   // 当たった方向・強さに応じて揺れる
   if(this.type==='bag'){this.vx+=ux*(.9+m*.22);this.vz+=uz*(.9+m*.22)}
   else if(this.type==='ball'){this.bv.x+=ux*(2.8+m*.5);this.bv.z+=uz*(2.8+m*.5);this.bv.y+=.4}
-  else if(this.type==='stand'&&e.zone==='回転バー'){const tx=-Math.sin(this.phi),tz=Math.cos(this.phi),sg=Math.sign(tx*ux+tz*uz)||1;this.om=clamp(this.om+sg*(3+m*.5),-14,14)}}
+  else if(this.type==='stand'&&e.zone==='回転バー'){const tx=-Math.sin(this.phi),tz=Math.cos(this.phi),sg=Math.sign(tx*ux+tz*uz)||1;this.om=clamp(this.om+sg*(3+m*.5),-14,14);this.standHitT=.7}}
 }
 // 命中確定：ダメージ計算とHP更新。結果はイベントとして返す（描画・音・ログは呼び出し側）
 function applyHit(att,tgt,h,z,np,ev){
@@ -353,16 +377,16 @@ function applyHit(att,tgt,h,z,np,ev){
  if(F.breaker&&h.ph==='s'&&h.u>.55){mul*=F.crusher?1.75:1.45;tags.push('SWEET')}
  let rm=1;   // 距離の適性・パンチの役割・同一パンチの連続（読まれやすさ）
  if(Rl.on){const Dc=Math.hypot(att.p.x-tgt.p.x,att.p.z-tgt.p.z),[mn,id,mx]=def.x.rng;
-  rm=def.x.baseMul*(Dc<mn?Rl.range.below:Dc<id?.8+.2*(Dc-mn)/(id-mn):Dc<=mx?1-.2*(Dc-id)/(mx-id):.75);
+  rm=def.x.baseMul*(h.dmgMul||1)*(Dc<mn?Rl.range.below:Dc<id?.8+.2*(Dc-mn)/(id-mn):Dc<=mx?1-.2*(Dc-id)/(mx-id):.75);
   if(h.stale>=Rl.stale.n)rm*=Math.max(Rl.stale.min,1-Rl.stale.step*(h.stale-Rl.stale.n+1));
   if(att.gcT>0){att.gcT=0;tags.push('COUNTER-GUARD')}}
  let dmg=def.base*sf*zm*df*mul*rm*(tgt.M.f.berserk?1.2:1);
- if(blocked){tgt.st=Math.max(0,tgt.st-(armHit?dmg/zm*zmC:dmg)*D.guard.stam);tgt.stDelay=1;   // ガードの消耗は部位ではなく攻撃の威力で決まる
+ if(blocked){tgt.st=Math.max(0,tgt.st-(armHit?dmg/zm*zmC:dmg)*D.guard.stam*(def.x.gp||1));tgt.stDelay=1;   // ガードの消耗は部位ではなく攻撃の威力で決まる
   let bm=Math.max(.05,(gm===1?.4:(cls==='head'?.2:.8))*(1-tgt.M.gd));if(Rl.on)bm+=(1-bm)*(def.x.pierce||0);dmg*=bm;
   if(Rl.on){tgt.gcT=Rl.gc.t;if(tgt.st<=0){tgt.stun=Math.max(tgt.stun,Rl.guardBreakStun);tgt.gb=0;tgt.gh=0;tags.push('GUARD BREAK')}}   // ガード成功＝反撃の好機／スタミナ切れでガードブレイク
   if(tgt.M.f.revenge){tgt.revT=tgt.M.f.bulwark?1.6:.8;if(tgt.M.f.bulwark)tgt.st=Math.min(tgt.stMax(),tgt.st+15)}
   att.lock=Math.max(att.lock,Rl.on?Rl.blockLock:.08)}
- dmg=clamp(dmg,blocked?.3:D.min,D.max);
+ dmg=clamp(dmg,blocked?Rl.chipMin*(def.x.gp||1):D.min,D.max);
  h.hit=true;tgt.hp=Math.max(0,tgt.hp-dmg);tgt.shake=blocked?.4:1;tgt.kick.addScaledVector(att.fwd(),blocked?.8:1.8);
  if(!blocked){tgt.stun=CFG.hitstun;tgt.combo=0;for(const k of['L','R']){const o=tgt.h[k];if(o.act&&o.ph==='w')tgt.endPunch(o,true)}}
  if(F.combo){att.combo=Math.min(F.rhythm?8:5,att.combo+1);att.comboT=1.4}
@@ -386,8 +410,8 @@ function combat(att,list,dt,ev){
 function lerpSnap(a,b,t){
  const L=(x,y)=>x+(y-x)*t,A=(x,y)=>x+angd(y,x)*t,o=t<.5?a:b;
  return{id:b.id,p:[L(a.p[0],b.p[0]),L(a.p[1],b.p[1])],y:A(a.y,b.y),v:[L(a.v[0],b.v[0]),L(a.v[1],b.v[1])],o:[L(a.o[0],b.o[0]),L(a.o[1],b.o[1])],
-  gb:L(a.gb,b.gb),gh:L(a.gh,b.gh),hp:b.hp,hm:b.hm,st:L(a.st,b.st),ex:b.ex,sk:L(a.sk,b.sk),ko:b.ko,cb:b.cb,
+  sn:b.sn,gb:L(a.gb,b.gb),gh:L(a.gh,b.gh),hp:b.hp,hm:b.hm,st:L(a.st,b.st),ex:b.ex,sk:L(a.sk,b.sk),ko:b.ko,cb:b.cb,
   h:[0,1].map(i=>{const x=a.h[i],y=b.h[i];return[o.h[i][0],o.h[i][1],L(x[2],y[2]),L(x[3],y[3]),L(x[4],y[4]),L(x[5],y[5]),L(x[6],y[6]),o.h[i][7]]})}}
 
-return{CFG,STEP,V,clamp,rnd,angd,pc,PUNCHES,PM,PRI,AB,ABM,SYN,RN,RC,calc,rollR,offer,Fighter,IDLE,STY,DIFF,AI,combat,separate,lerpSnap,segDist,Dummy,DUMMY_TYPES};
+return{CFG,STEP,V,clamp,rnd,angd,pc,PUNCHES,PUNCH_KEYS,AB,ABM,SYN,RN,RC,calc,rollR,offer,Fighter,IDLE,STY,DIFF,AI,combat,separate,lerpSnap,segDist,Dummy,DUMMY_TYPES};
 });
