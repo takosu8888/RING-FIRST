@@ -267,7 +267,7 @@ class AI{
   let r=Math.random()*tot;for(const [id,w] of ws){r-=w;if(r<=0)return id}return ws[0][0]}
  think(me,op,dt){
   const S=this.S,D=this.D,ob=this.ob,I={mx:0,mz:0,punch:{},guard:0,dash:null,sway:0,duck:false},dx=op.p.x-me.p.x,dz=op.p.z-me.p.z,dist=Math.hypot(dx,dz);
-  I.face=Math.atan2(-dx,-dz);I.faceScale=me.punching()?.3:1;me.aimK=.6;me.aimErr=D.aimErr==null?.1:D.aimErr;this.t+=dt;   // 攻撃中は相手を追尾しすぎない／狙いに誤差を持たせるthis.cool-=dt;this.rec-=dt;this.stT-=dt;this.dcd-=dt;
+  I.face=Math.atan2(-dx,-dz);I.faceScale=me.punching()?.3:1;me.aimK=.6;me.aimErr=D.aimErr==null?.1:D.aimErr;this.t+=dt;this.cool-=dt;this.rec-=dt;this.stT-=dt;this.dcd-=dt;   // 攻撃中は相手を追尾しすぎない／狙いに誤差を持たせる
   this.observe(me,op,dt,dist);
   for(const k of['L','R']){const h=op.h[k];   // 相手のパンチ開始を「見てから」反応（難易度で反応時間が変わる）
    if(h.act&&h.id!==this.seen&&dist<2.2&&(h.ph==='w'||h.ph==='s')){this.seen=h.id;this.rt=rnd(D.rt[0],D.rt[1]);this.tg=h.def.A.y>1.35?'head':'body';this.mem.push(this.tg);if(this.mem.length>10)this.mem.shift()}}
@@ -277,11 +277,11 @@ class AI{
    if(x<ev*.88){if(this.tg==='head'&&Math.random()<.4+hs*.3)I.duck=true;else I.sway=Math.random()<.5?-1:1}
    else if(Math.random()<.5+gp){this.gT=.5+.2*press;this.gM=this.tg==='head'?2:1}}}
   if(this.gT>0){this.gT-=dt;I.guard=this.gM}
-  else if(S.gp>.5*D.gp&&this.cool>.35&&!me.punching()&&dist<1.8&&me.st>35)I.guard=1;
+  else if(S.gp>.5*D.gp&&this.cool>.35&&!me.punching()&&op.punching()&&dist<1.8&&me.st>35)I.guard=1;
   if(this.combo){this.combo.t-=dt;if(this.combo.t<=0){const id=this.pickPunch(me,op,dist),d=PUNCHES[id];if(dist<1.6&&!me.punching()){I.punch[d.hand]=id;this.mine.push(id)}this.combo=null}}
-  const tired=me.st<D.tired,rdy=!I.guard&&!tired&&!me.punching()&&me.lock<=0&&dist<1.55;
+  const tired=me.st<D.tired,rdy=!I.guard&&!tired&&!me.punching()&&me.lock<=0&&dist<1.62;
   const react=me.counterT>0||me.revT>0||me.gcT>0;   // 避けた／ガードした直後の反撃チャンス
-  let go=rdy&&this.cool<=0&&dist<1.5;
+  let go=rdy&&this.cool<=0&&dist<1.53;
   if(rdy&&this.pnT<0&&this.pnT>-.05&&this.pnGo&&this.punishT>0){go=true;this.pnGo=false}   // 相手の空振り・隙への反撃
   if(rdy&&react&&this.cool<.6)go=true;
   if(go){const id=this.pickPunch(me,op,dist),d=PUNCHES[id];I.punch[d.hand]=id;this.mine.push(id);if(this.mine.length>6)this.mine.shift();
@@ -290,17 +290,18 @@ class AI{
   /* 距離管理：スタイル別の理想距離を中心に、近すぎ/遠すぎの幅を分けて小刻みな前後移動を抑える。
      相手の連打・自分のスタミナ・反撃チャンスに応じて距離を変え、棒立ちの追いかけ合いを減らす。 */
   const pressure=clamp(ob.rate/2.5,0,1);
-  let want=S.d;
+  // 攻撃の届く距離を優先。スタイル差は残しつつ、遠くで停止して攻撃できなくなるのを防ぐ。
+  let want=clamp(S.d,1.08,1.28);
   if(D.space>0){
-   want+=D.space*(.20*pressure+(me.st<40?.16:0));
-   if(this.pnGo&&this.punishT>0)want-=.12*D.punish;   // 相手の隙を見たら一歩踏み込む
-   if(ob.guard>.55)want+=.05*D.learn;                 // ガードが多い相手には正面から密着しすぎない
+   want+=D.space*(.10*pressure+(me.st<40?.12:0));
+   if(this.pnGo&&this.punishT>0)want-=.12*D.punish;
+   if(ob.guard>.55)want+=.035*D.learn;
   }
-  const inner=want-.17,outer=want+.22;
-  if(tired){if(dist<outer+.18)I.mz=-.75;else if(dist>outer+.5)I.mz=.35}
-  else if(this.rec>0){if(dist<outer)I.mz=-.45;else if(dist>outer+.22)I.mz=.35}
+  const inner=want-.16,outer=want+.13;
+  if(tired){if(dist<outer+.22)I.mz=-.65;else if(dist>outer+.48)I.mz=.3}
+  else if(this.rec>0){if(dist<outer+.08)I.mz=-.35;else if(dist>outer+.28)I.mz=.35}
   else if(dist>outer)I.mz=1;
-  else if(dist<inner)I.mz=-.8;
+  else if(dist<inner)I.mz=-.65;
   else I.mz=0;
   if(D.space>.5&&dist<.95&&ob.rate>2&&this.dcd<=0&&!I.guard&&Math.random()<.01){I.dash={x:Math.random()<.5?-1:1,z:-1};this.dcd=1.4}
   if(this.stT<=0){this.sg=D.move<1&&Math.random()<.7?0:[-1,0,1][Math.floor(Math.random()*3)];this.stT=rnd(.6,1.6)}
