@@ -168,7 +168,7 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 </div>
 <div id="cross"></div><div id="flash"></div><div id="banner"></div><div id="toast"></div>
 <div id="log"></div>
-<div id="help">W/S 前進・後退　A/D 相手の周りを移動<br>U/H 左右ジャブ・ストレート　I/J 左右フック　O/K 左右アッパー<br>D＋U/H/J：ボディ攻撃<br>Shift(長押し) ガード　E(長押し) 頭部ガード<br>Q/R(タップ) 左右スウェー　Space(タップ) ダッキング<br>同じ方向キー2回でダッシュ<br>P ポーズ　L 戦闘ログ切替</div>
+<div id="help">W/S 前進・後退　A/D 相手の周りを移動<br>J 左ジャブ／K 右ストレート／U 左アッパー<br>I 右アッパー／N 左フック／M 右フック<br>Shift(長押し) ガード　E(長押し) 頭部ガード<br>Q/R(タップ) 左右スウェー　Space(タップ) ダッキング<br>同じ方向キー2回でダッシュ<br>P ポーズ　L 戦闘ログ切替</div>
 <div id="menu" class="ov"><div class="card">
 <h1>RING FIRST</h1><p class="sub">3ポイント先取。ポイントごとに進化して、自分だけのビルドで戦う。</p>
 <button id="bcpu">CPU対戦</button>
@@ -176,7 +176,7 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 <button id="bsb" class="alt">サンドバッグ（練習モード）</button>
 <div class="row2"><button id="btut" class="alt">遊び方</button><button id="bset" class="alt">設定</button></div>
 <p class="note">オンライン対戦には専用サーバー（README参照）が必要です。CPU戦はサーバー無しでそのまま遊べます。</p>
-<div class="keys">操作はすべてキーボードだけ。カメラは相手を滑らかに追従します。<br>6ボタン：U=左ジャブ／H=右ストレート、I=左フック／J=右フック、O=左アッパー／K=右アッパー<br>D＋U=左ボディストレート／D＋H=右ボディストレート／D＋J=右ボディフック<br>進化の選択：1／2／3、または A／D で選んで Enter<br>P：ポーズ ／ L：戦闘ログの表示切替（設定からも変更できます）</div>
+<div class="keys">操作はすべてキーボードだけ。カメラは相手を滑らかに追従します。<br>パンチ：J 左ジャブ／K 右ストレート／U 左アッパー／I 右アッパー／N 左フック／M 右フック（移動キーとは独立）<br>進化の選択：1／2／3、または A／D で選んで Enter<br>P：ポーズ ／ L：戦闘ログの表示切替（設定からも変更できます）</div>
 </div></div>
 <div id="evo" class="ov off"><h2 id="evt">進化を選択</h2><div id="cards"></div><div id="evh">1 / 2 / 3 で選択、A / D で移動、Enter で決定</div></div>
 <div id="over" class="ov off"><div class="card"><p id="res"></p><p class="sub" id="rs"></p><button id="bre">新しい試合を始める</button></div></div>
@@ -196,6 +196,7 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 <div id="settings" class="ov off"><div class="card"><h1 style="font-size:32px">設定</h1>
 <div class="setrow"><div><b>戦闘ログの表示</b><div class="note">Lキーでも切り替えられます。非表示でも戦闘の記録と計算はそのままです。</div></div><button id="sglog" class="tg" aria-pressed="true">ON</button></div>
 <div class="setrow"><div><b>カメラ演出</b><div class="note">パンチ・被弾・回避に合わせたカメラの動きと揺れ。OFFでも視点の追従や照準はそのままです。</div></div><button id="sgcam" class="tg" aria-pressed="true">ON</button></div>
+<div class="setrow"><div><b>構え</b><div class="note">オーソドックス＝左手が前手／サウスポー＝右手が前手。キーの意味は変わりません（Jは常に左ジャブ）。前手は速くて届き、後手は重い。次の試合から反映されます。</div></div><div class="seg" style="flex:none;width:210px"><button id="sgst-orth">オーソドックス</button><button id="sgst-south">サウスポー</button></div></div>
 <button id="sgclose" class="alt">閉じる</button></div></div>
 <div id="cinebar"></div><div id="cinedim"></div><div id="cinetitle"></div><div id="cinehint">SPACE / ENTER / クリック：スキップ</div><div id="flashw"></div>
 <div id="tut" class="ov off" role="dialog" aria-label="遊び方"><div class="card tutcard">
@@ -241,18 +242,21 @@ body.cine #top,body.cine #log,body.cine #help,body.cine #cross,body.cine #chat,b
 <script>
 "use strict";
 /* RING FIRST — index.html。戦闘ロジック・CPU・進化は game-core.js（RFCore）に分離しています。 */
-const {CFG,STEP,V,clamp,rnd,angd,pc,PUNCHES,PM,PRI,AB,ABM,SYN,RN,RC,calc,rollR,offer,Fighter,IDLE,STY,DIFF,AI,combat,separate,lerpSnap,segDist,Dummy,DUMMY_TYPES}=RFCore;
+const {CFG,STEP,V,clamp,rnd,angd,pc,PUNCHES,PUNCH_KEYS,AB,ABM,SYN,RN,RC,calc,rollR,offer,Fighter,IDLE,STY,DIFF,AI,combat,separate,lerpSnap,segDist,Dummy,DUMMY_TYPES}=RFCore;
 const $=id=>document.getElementById(id);
 /* ============ 入力（キー→意図） ============ */
 /* ============ 設定（localStorageに保存） ============ */
-const Settings={log:false,cam:true,forced:false,prev:null,   // 戦闘ログは初期設定OFF。保存済みの値（ユーザーがONにした場合など）があればそれに従う
- load(){try{const s=JSON.parse(localStorage.getItem('rf_settings')||'{}');if(typeof s.log==='boolean')this.log=s.log;if(typeof s.cam==='boolean')this.cam=s.cam}catch(e){}this.apply();
+const Settings={log:false,cam:true,stance:'orth',forced:false,prev:null,   // 戦闘ログは初期設定OFF。保存済みの値（ユーザーがONにした場合など）があればそれに従う
+ load(){try{const s=JSON.parse(localStorage.getItem('rf_settings')||'{}');if(typeof s.log==='boolean')this.log=s.log;if(typeof s.cam==='boolean')this.cam=s.cam;if(s.stance==='south'||s.stance==='orth')this.stance=s.stance}catch(e){}this.apply();
   addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if(e.code==='KeyL'&&!e.repeat)this.set('log',!this.log)})},   // Lキー：戦闘ログの表示切替（表示だけを切り替える）
- save(){try{localStorage.setItem('rf_settings',JSON.stringify({log:this.log,cam:this.cam}))}catch(e){}},
+ save(){try{localStorage.setItem('rf_settings',JSON.stringify({log:this.log,cam:this.cam,stance:this.stance}))}catch(e){}},
  eff(){return this.forced||this.log},   // 実際に表示するか（サンドバッグ中は強制ON）
  apply(){document.body.classList.toggle('nolog',!this.eff());const l=$('sglog'),c=$('sgcam');
   if(l){l.textContent=this.forced?'ON（固定）':(this.log?'ON':'OFF');l.setAttribute('aria-pressed',String(this.eff()));l.disabled=this.forced}
-  if(c){c.textContent=this.cam?'ON':'OFF';c.setAttribute('aria-pressed',String(this.cam))}},
+  if(c){c.textContent=this.cam?'ON':'OFF';c.setAttribute('aria-pressed',String(this.cam))}
+  for(const k of['orth','south']){const b=$('sgst-'+k);if(b)b.classList.toggle('on',this.stance===k)}},
+ setStance(v){if(v!=='orth'&&v!=='south')return;this.stance=v;this.save();this.apply();UI.toast('構え：'+(v==='south'?'サウスポー':'オーソドックス')+'（次の試合から反映）',1500);
+  if(window.online&&window.online.active&&window.online.send)window.online.send({t:'stance',v})},   // ロビーなら相手にも伝える
  set(k,v){if(k==='log'&&this.forced){UI.toast('サンドバッグモード中は戦闘ログが常にONです',1400);return}this[k]=!!v;this.save();this.apply();if(k==='log')UI.toast('戦闘ログ：'+(v?'表示':'非表示'),900)},
  enterForced(){if(this.forced)return;this.prev=this.log;this.forced=true;this.apply()},   // 開始前の設定を保存し、ONに固定（保存データには書き込まない）
  exitForced(){if(!this.forced)return;this.forced=false;this.log=this.prev;this.prev=null;this.apply()}};   // 開始前の設定へ戻す（OFFならOFF、ONならON）
@@ -266,10 +270,7 @@ class Input{
  key(e){return e.code.startsWith('Key')?e.code.slice(3).toLowerCase():e.code}
  down(e){const c=this.key(e);if(e.repeat)return;this.k.add(c);
   if(c.length===1&&'wasd'.includes(c)){const n=performance.now();if(n-(this.last[c]||-1e9)<CFG.doubleTapMs){this.dashReq=c;this.last[c]=-1e9}else this.last[c]=n}
-  // 6ボタン：U/H=ジャブ・ストレート、I/J=フック、O/K=アッパー。Dを添えると対応するボディ攻撃。
-  const attack={u:['L','L_JAB'],h:['R','R_STRAIGHT'],i:['L','L_HOOK'],j:['R','R_HOOK'],o:['L','L_UPPER'],k:['R','R_UPPER']};
-  const body={u:['L','L_BODY'],h:['R','R_BODY'],j:['R','R_BODYHOOK']};
-  if(attack[c]){const [hand,id]=(this.k.has('d')&&body[c])?body[c]:attack[c];this.pq[hand]=id}
+  {const pid=PUNCH_KEYS[c];if(pid)this.pq[PUNCHES[pid].hand]=pid}   // J/K/U/I/N/M：パンチキーだけでパンチが決まる（WASDとは完全に独立）
   if(c==='q')this.sw=-1;if(c==='r')this.sw=1;if(c==='Space')this.dk=true}
  up(e){this.k.delete(this.key(e))}
  intent(){const K=this.k,D={w:{x:0,z:1},s:{x:0,z:-1},a:{x:-1,z:0},d:{x:1,z:0}};
@@ -336,7 +337,9 @@ class Rig{
  setFP(v){this.fp=v;this.body.visible=!v;this.legs.visible=!v}
  sync(dt){const f=this.f,g=this.g,o=f.off;g.position.set(f.p.x,0,f.p.z);g.rotation.y=f.yaw;
   const ko=f.hp<=0?Math.min(1.45,f.koT*2.8):0;g.rotation.x=ko;
-  const dk=-o.y/CFG.duck.drop,tw=(f.h.R.ext-f.h.L.ext)*.5,pz=this.pose;this.pt=(this.pt||0)+dt;const pt=this.pt;
+  const sthn=f.stance==='south'?1:-1,dk=-o.y/CFG.duck.drop,tw=(f.h.R.ext-f.h.L.ext)*.5+.16*sthn,pz=this.pose;
+  this.lg[-1].position.z=sthn>0?.1:-.1;this.lg[1].position.z=sthn>0?-.1:.1;
+  this.pt=(this.pt||0)+dt;const pt=this.pt;
   const bounce=pz==='win'?Math.abs(Math.sin(pt*6))*.07:0;
   this.body.position.set(o.x*.9,.85+o.y*.6+bounce,0);
   this.body.rotation.set(-.55*dk+f.shake*.22+(pz==='win'?-.12:pz==='lose'?.55:0),tw+(pz==='win'?Math.sin(pt*3)*.25:0),-o.x*.6);
@@ -486,7 +489,7 @@ class Game{
   this.score={p:0,c:0};this.round=1;this.sel=0;this.offs=[];this.lastW=null;this.ai=new AI('combo');this.rounds=3;this.diff='normal';this.final=false;this.pausedFrom=null;this.sb=null;this.loadCfg();
   this.v=new View($('c'),this.P,this.C);this.bind();Settings.load();this.hud();requestAnimationFrame(t=>this.frame(t))}
  newMatch(){this.leaveSandbag();const D=DIFF[this.diff]||DIFF.normal;this.C.bonus=D.bonus||null;this.C.bonusLabel=D.bonus?'激ムズ補正':null;this.C.bonusTitle=D.bonusText||'';   // 難易度は試合開始時に確定
-  this.P.newMatch();this.C.newMatch();const k=Object.keys(STY);this.ai=new AI(k[Math.floor(Math.random()*k.length)],this.diff);
+  this.P.newMatch();this.P.stance=Settings.stance;this.C.newMatch();const k=Object.keys(STY);this.ai=new AI(k[Math.floor(Math.random()*k.length)],this.diff);
   $('cn').textContent='CPU（'+this.ai.S.n+' ／ '+D.n+'）';this.score={p:0,c:0};this.round=1;this.final=false;this.pausedFrom=null;this.stopCineUI();$('pause').classList.add('off');$('log').innerHTML='';
   $('menu').classList.add('off');$('over').classList.add('off');$('evo').classList.add('off');UI.chips(this.P,$('pc'));UI.chips(this.C,$('cc'));this.beginRound();if(D.bonus)setTimeout(()=>UI.toast('激ムズ：CPUに能力補正 ― '+D.bonusText,3800),900)}
  beginRound(){this.P.newPoint(0,2.4,0);this.C.newPoint(0,-1.6,Math.PI);this.ai.reset();this.inp.clear();this.timer=CFG.roundTime;
@@ -534,7 +537,7 @@ class Game{
   B('presume',()=>{if(window.online&&window.online.active)window.online.togglePause();else this.resume()});
   B('prestart',()=>{if(this.sb){this.sbReset();this.resume();return}this.showPause(false);this.pausedFrom=null;this.newMatch()});
   B('pquit',()=>{if(window.online&&window.online.active)window.online.pauseQuit();else this.quitToTitle()});
-  B('pset',()=>this.openSettings());
+  B('pset',()=>this.openSettings());B('sgst-orth',()=>Settings.setStance('orth'));B('sgst-south',()=>Settings.setStance('south'));
   B('bsb',()=>this.openSbSel());B('sbback',()=>{$('sbsel').classList.add('off');$('menu').classList.remove('off')});B('sbreset',()=>this.sbReset());
   for(const t of Object.keys(DUMMY_TYPES)){B('sbt-'+t,()=>this.startSandbag(t));B('sbk-'+t,()=>this.sbSwitch(t))}
   B('sgclose',()=>this.closeSettings());B('sglog',()=>Settings.set('log',!Settings.log));B('sgcam',()=>Settings.set('cam',!Settings.cam));
@@ -549,12 +552,12 @@ class Game{
  openSbSel(){$('menu').classList.add('off');$('sbsel').classList.remove('off')}
  startSandbag(type){const P=this.P;this.leaveSandbag();['sbsel','setup','over','evo','pause'].forEach(i=>$(i).classList.add('off'));this.stopCineUI();
   Settings.enterForced();   // 戦闘ログ：開始前の設定を保存し、ONに固定
-  P.newMatch();this.sb={type:null,dummy:null,t:0,stats:null};this.sbMake(type);this.state='sandbag';this.inp.clear();$('log').innerHTML='';
+  P.newMatch();P.stance=Settings.stance;this.sb={type:null,dummy:null,t:0,stats:null};this.sbMake(type);this.state='sandbag';this.inp.clear();$('log').innerHTML='';
   $('sbpanel').classList.remove('off');UI.toast('サンドバッグモード：戦闘ログは自動でONです（終了すると元の設定に戻ります）',3200)}
- sbMake(type){const P=this.P,sb=this.sb;sb.type=type;sb.dummy=new Dummy(type,0,-.2,Math.PI,P);sb.stats=this.sbNewStats();P.newPoint(0,1.15,0);P.st=P.stMax();this.v.setDummy(sb.dummy);this.sbRender()}   // 的はプレイヤーの約1.35m先
+ sbMake(type){const P=this.P,sb=this.sb;sb.type=type;sb.dummy=new Dummy(type,0,-.2,Math.PI,P);sb.stats=this.sbNewStats();P.newPoint(0,1.15,0);P.infStam=true;P.st=P.stMax();this.v.setDummy(sb.dummy);this.sbRender()}   // サンドバッグ中だけスタミナ無限   // 的はプレイヤーの約1.35m先
  sbNewStats(){return{n:0,total:0,max:0,by:{},last:null,combo:{n:0,dmg:0,names:[],t:-9},best:{n:0,dmg:0,names:[]}}}
  sbSwitch(type){if(!this.sb||this.sb.type===type||!DUMMY_TYPES[type])return;this.sbMake(type);UI.toast(DUMMY_TYPES[type],900)}
- sbReset(){if(!this.sb)return;const D=this.sb.dummy;this.sb.stats=this.sbNewStats();D.sx=D.sz=D.vx=D.vz=D.om=0;D.bv.set(0,0,0);D.rest=false;this.P.st=this.P.stMax();this.sbRender()}
+ sbReset(){if(!this.sb)return;const D=this.sb.dummy;this.sb.stats=this.sbNewStats();D.sx=D.sz=D.vx=D.vz=D.om=0;D.phi=0;D.standHitT=0;D.standBurst=0;D.standNext=.5;D.ballNext=.5;D.bv.set(0,0,0);D.rest=false;this.P.st=this.P.stMax();this.sbRender()}
  sbStep(dt){const sb=this.sb,P=this.P,D=sb.dummy,ip=this.inp.intent();sb.t+=dt;
   ip.face=Math.atan2(-(D.p.x-P.p.x),-(D.p.z-P.p.z));P.upd(dt,ip,D);D.upd(dt);
   if(sb.type!=='ball'){const dx=P.p.x-D.base.x,dz=P.p.z-D.base.z,d=Math.hypot(dx,dz);if(d<CFG.minSep&&d>1e-4){P.p.x=D.base.x+dx/d*CFG.minSep;P.p.z=D.base.z+dz/d*CFG.minSep}}   // 動かない的には重ならない
@@ -571,9 +574,9 @@ class Game{
   $('sbcombo').textContent=c.n>1?`COMBO ${c.n} HIT ／ 合計 ${c.dmg.toFixed(1)}\n${c.names.join(' → ')}`:(S.best.n>1?`最大コンボ ${S.best.n} HIT ／ 合計 ${S.best.dmg.toFixed(1)}\n${S.best.names.join(' → ')}`:'コンボ：1秒以内に連続で当てると記録されます');
   const rows=Object.values(S.by).sort((a,b)=>b.n-a.n).map(b=>`<tr><td>${b.name}</td><td>${b.n}</td><td>${(b.dmg/b.n).toFixed(1)}</td><td>${b.max.toFixed(1)}</td><td>${(b.spd/b.n).toFixed(1)}</td></tr>`).join('');
   $('sbtable').innerHTML=rows?`<table class="tt"><tr><th>パンチ</th><th>回数</th><th>平均DMG</th><th>最大</th><th>平均m/s</th></tr>${rows}<tr><th>合計</th><th>${S.n}</th><th>${(S.total/S.n).toFixed(1)}</th><th>${S.max.toFixed(1)}</th><th></th></tr></table>`:''}
- sbHud(){const P=this.P;$('mh').style.width='100%';$('ms').style.width=P.st/P.stMax()*100+'%';$('ch').style.width='100%';$('cs2').style.width='100%';
+ sbHud(){const P=this.P;$('mh').style.width='100%';$('ms').style.width='100%';$('ch').style.width='100%';$('cs2').style.width='100%';
   $('cn').textContent='サンドバッグ（'+DUMMY_TYPES[this.sb.type]+'）';$('sc').textContent='PRACTICE';$('tm').textContent='∞';$('rd').textContent=''}
- leaveSandbag(){if(!this.sb)return;this.sb=null;this.v.clearDummy();$('sbpanel').classList.add('off');this.P.newMatch();
+ leaveSandbag(){if(!this.sb)return;this.sb=null;this.v.clearDummy();$('sbpanel').classList.add('off');this.P.infStam=false;this.P.newMatch();   // 無限スタミナを必ず解除
   Settings.exitForced();   // 戦闘ログ：開始前の設定へ戻す（終了・途中終了・他モード開始のどの経路でも、必ずここを通る）
   this.v.setFighters(this.P,[this.C])}
  fav(){const s=this.P.stat,sc={off:s.punch/10,def:s.guard/4,dodge:s.dodge/3},m=Math.max(sc.off,sc.def,sc.dodge);
@@ -631,7 +634,7 @@ class Game{
   this.hud();this.v.render(dt,this.state==='cine'?this.v.cineTs():1);requestAnimationFrame(t=>this.frame(t))}
 }
 /* ============ 遊び方（チュートリアル）：タイトル／オンライン接続待ち／ロビーから開く。閉じても接続処理は止まらない ============ */
-const Tut={i:0,tm:null,pages:[{"t": "① 基本移動（WASD）", "v": "<div class=\"col\"><div class=\"kcs\"><span class=\"kc\" style=\"--d:0s\">W</span></div><div class=\"kcs\"><span class=\"kc\" style=\"--d:.8s\">A</span><span class=\"kc\" style=\"--d:1.6s\">S</span><span class=\"kc\" style=\"--d:2.4s\">D</span></div></div><div class=\"arena\"><i class=\"dr\"></i><i class=\"dy\"></i></div>", "b": "<p><b>W</b> 前進／<b>S</b> 後退／<b>A・D</b> 相手の周りを回る（カメラは相手を追い続けます）。</p><p>相手に近づきすぎると押し合いになります。まずは相手のまわりを回りながら、距離を感じ取りましょう。</p>"}, {"t": "② 6ボタン式パンチ操作", "v": "<div class=\"col\"><div class=\"kcs\"><span class=\"kc\" style=\"--d:0s\">U</span><span class=\"kc\" style=\"--d:.2s\">I</span><span class=\"kc\" style=\"--d:.4s\">O</span></div><div class=\"kcs\"><span class=\"kc\" style=\"--d:.6s\">H</span><span class=\"kc\" style=\"--d:.8s\">J</span><span class=\"kc\" style=\"--d:1s\">K</span></div></div><div class=\"gv\" style=\"--d:0s\"></div><div class=\"gv\" style=\"--d:.6s;background:var(--red)\"></div>", "b": "<p>パンチは6つのキーに独立しました。<b>U/H</b>＝左ジャブ・右ストレート、<b>I/J</b>＝左右フック、<b>O/K</b>＝左右アッパーです。</p><p>左右の拳は別々に入力でき、反対の手のパンチを続けて出すこともできます。拳の速度と当たった部位でダメージが決まります。</p>"}, {"t": "③ ガード", "v": "<div class=\"kcs\"><span class=\"kc\" style=\"--d:0s\">Shift</span><span class=\"kc\" style=\"--d:1.6s\">E</span></div><div class=\"shield\"></div>", "b": "<p><b>左Shift</b>（押している間）＝基本ガード：頭と胴を軽減。<b>E</b>（押している間）＝頭部ガード：頭に強く、胴体には弱い。</p><p>ガード中は移動が遅くなり、<b>スタミナが減り続けます</b>。尽きると<b>ガードブレイク</b>。ガードに成功すると約0.7秒の<b>反撃チャンス</b>（速度と威力アップ）。</p>"}, {"t": "④ 回避・移動テクニック", "v": "<div class=\"col\"><div class=\"kcs\"><span class=\"kc\" style=\"--d:0s\">W</span><span class=\"kc\" style=\"--d:.3s\">W</span><span class=\"kc\" style=\"--d:1.2s\">Q</span><span class=\"kc\" style=\"--d:1.8s\">R</span><span class=\"kc\" style=\"--d:2.4s\">Space</span></div></div><div style=\"position:relative;width:150px;height:150px\"><div class=\"fig\"></div></div>", "b": "<p><b>同じ方向キーを2回</b>＝ダッシュ。<b>Q / R</b>（タップ）＝左右スウェー。<b>Space</b>（タップ）＝ダッキング。</p><p>スウェーは横から来る攻撃、ダッキングは頭への攻撃に有効ですが、<b>動いた後と失敗時には隙</b>があり、連続では使えません。</p>"}, {"t": "⑤ パンチの種類と使い分け", "v": "<table class=\"tt\"><tr><th>キー</th><th>技</th><th>特徴</th></tr><tr><td>U / H</td><td>左ジャブ／右ストレート</td><td>速さとリーチ</td></tr><tr><td>I / J</td><td>左フック／右フック</td><td>近距離で強い</td></tr><tr><td>O / K</td><td>左アッパー／右アッパー</td><td>至近距離・ガード崩し</td></tr><tr><td>D＋U</td><td>左ボディストレート</td><td>胴体を狙う</td></tr><tr><td>D＋H</td><td>右ボディストレート</td><td>胴体を狙う</td></tr><tr><td>D＋J</td><td>右ボディフック</td><td>近距離で胴体を狙う</td></tr></table>", "b": "<p><b>ジャブ</b>：速い・軽い・消費小。中距離。<b>ストレート</b>：威力とリーチに優れます。</p><p><b>フック</b>：近距離で強い。<b>アッパー</b>：至近距離でガードを崩す力を持ちます。<b>ボディ攻撃</b>：頭を守る相手への選択肢です。</p><p>6つのパンチキーはそのまま押せば技が出ます。ボディ攻撃だけ、<b>Dを押しながら該当キー</b>を押してください。</p>"}, {"t": "⑥ スタミナ管理", "v": "<div class=\"col\"><div class=\"sbar\"><b></b></div><div style=\"font-size:12px;opacity:.8\">連打で減り、休むと回復</div></div>", "b": "<p>パンチ・ダッシュ・回避・ガードでスタミナを使います。<b>連打するほど消費が増え</b>（直前0.9秒以内に打つと+18%ずつ）、3連打目以降は<b>攻撃後の隙</b>も増えます。</p><p><b>空振り</b>も消費と隙が増え、<b>同じパンチを3回続ける</b>と読まれて威力が落ちます。黄色いバーを見て、休むタイミングを作りましょう。</p>"}, {"t": "⑦ 距離管理", "v": "<div style=\"position:relative;width:320px;height:90px\"><div class=\"rng\" style=\"position:absolute;left:10px;top:8px\"><span class=\"n\">近：フック・アッパー</span><span class=\"m\">中：ジャブ</span><span class=\"f\">遠：ストレート</span></div><div class=\"mk\"></div></div>", "b": "<p>パンチには<b>得意な距離</b>があります。近すぎるとジャブ・ストレートは威力が落ち、遠いとフックは届きません。</p><p>距離を取れば相手はストレートしか届かず、<b>空振りを見て反撃</b>できます。逆に踏み込む側は、短い射程の技へ切り替えましょう。</p>"}, {"t": "⑧ 攻防の読み合い", "v": "<div class=\"tri\"><span>連打 <em>→ 弱い：</em>距離とガード反撃</span><span>ガード固め <em>→ 弱い：</em>ボディ・アッパー／スタミナ切れ</span><span>距離取り <em>→ 弱い：</em>踏み込みジャブ・連打</span></div>", "b": "<p>連打だけでは勝てません。相手の行動を観察して、攻め方を変えましょう。</p><p>CPUも<b>あなたの攻撃頻度・ガード・同じ技の繰り返し</b>を観察して対応し、空振りや攻撃後の隙を狙ってきます（強さは難易度で変わります）。</p>"}],
+const Tut={i:0,tm:null,pages:[{"t":"① 基本移動（WASD）","v":"<div class=\"col\"><div class=\"kcs\"><span class=\"kc\">W</span></div><div class=\"kcs\"><span class=\"kc\">A</span><span class=\"kc\">S</span><span class=\"kc\">D</span></div></div><div class=\"arena\"><i class=\"dr\"></i><i class=\"dy\"></i></div>","b":"<p><b>W</b>＝前進、<b>S</b>＝後退、<b>A・D</b>＝左右移動。相手には自動で正面を向くので、マウス操作は必要ありません。</p><p>攻撃中も移動キーは独立して使えます。相手の正面に立ち続けず、横移動も使って位置を調整しましょう。</p><p><b>P</b>で一時停止できます（オンライン対戦では相手の試合時間は止まりません）。</p>"},{"t":"② パンチ操作（6ボタン）","v":"<div class=\"col\"><div class=\"kcs\"><span class=\"kc\">J</span><span class=\"kc\">K</span></div><div class=\"kcs\"><span class=\"kc\">U</span><span class=\"kc\">I</span></div><div class=\"kcs\"><span class=\"kc\">N</span><span class=\"kc\">M</span></div></div><div class=\"gv\"></div>","b":"<p><b>J</b>＝左ジャブ ／ <b>K</b>＝右ストレート<br><b>U</b>＝左アッパー ／ <b>I</b>＝右アッパー<br><b>N</b>＝左フック ／ <b>M</b>＝右フック</p><p>パンチの種類はキーだけで決まり、<b>WASDの入力とは完全に独立</b>しています。移動しながらでも狙ったパンチを選べます。</p>"},{"t":"③ ガード","v":"<div class=\"kcs\"><span class=\"kc\">Shift</span><span class=\"kc\">E</span></div><div class=\"shield\"></div>","b":"<p><b>左Shift（押し続ける）</b>＝基本ガード。頭と胴体をバランスよく守ります。<br><b>E（押し続ける）</b>＝頭部ガード。頭への防御を優先します。</p><p>ガード中は移動が遅くなり、スタミナも消費します。相手の攻撃を受け止めた後は反撃のチャンス。ずっと構え続けず、攻撃を見て使い分けましょう。</p>"},{"t":"④ 回避・ダッシュ","v":"<div class=\"col\"><div class=\"kcs\"><span class=\"kc\">Q</span><span class=\"kc\">R</span><span class=\"kc\">Space</span></div><div class=\"kcs\"><span class=\"kc\">W</span><span class=\"kc\">W</span></div></div><div class=\"fig\"></div>","b":"<p><b>Q</b>＝左スウェー、<b>R</b>＝右スウェー、<b>Space</b>＝ダッキング。攻撃の軌道に合わせて使い分けます。</p><p><b>同じWASDキーを素早く2回</b>押すと、その方向へダッシュ。回避にはスタミナとクールダウンがあり、動いた直後に隙ができることもあります。</p>"},{"t":"⑤ 構え（オーソドックス／サウスポー）","v":"<div class=\"kcs\"><span class=\"kc\">ORTHODOX</span><span class=\"kc\">SOUTHPAW</span></div><div class=\"arena\"><i class=\"dr\"></i><i class=\"dy\"></i></div>","b":"<p><b>オーソドックス</b>では左手が前手、右手が後手。<b>サウスポー</b>では右手が前手、左手が後手になります。</p><p>パンチキーの左右（J・U・N＝左、K・I・M＝右）は変わりません。ただし前手は速さ・届きやすさ・消費の軽さ、後手は威力の強さが特徴です。構えは設定から変更できます。</p>"},{"t":"⑥ パンチの距離","v":"<div style=\"position:relative;width:320px;height:90px\"><div class=\"rng\" style=\"position:absolute;left:10px;top:8px\"><span class=\"n\">近：アッパー</span><span class=\"m\">中：フック・ジャブ</span><span class=\"f\">遠：ストレート</span></div><div class=\"mk\"></div></div>","b":"<p>パンチにはそれぞれ得意な距離があります。<b>アッパー</b>は近距離、<b>フック</b>は近〜中距離、<b>ジャブやストレート</b>は中距離で使いやすい技です。</p><p>近すぎても遠すぎても威力や命中しやすさが下がります。相手との距離を見て、パンチを選び直しましょう。</p>"},{"t":"⑦ スタミナ管理","v":"<div class=\"col\"><div class=\"sbar\"><b></b></div><div style=\"font-size:12px;opacity:.8\">攻撃・防御・移動で消費</div></div>","b":"<p>パンチ・ダッシュ・回避・ガードはスタミナを使います。短時間にパンチを続けるほど消費が増え、連続攻撃の後には隙も大きくなります。</p><p><b>空振り</b>にも追加の消費と硬直があります。同じパンチを続けると威力も落ちるため、休む・動く・守る時間を作りましょう。</p>"},{"t":"⑧ 読み合いとCPU","v":"<div class=\"tri\"><span>連打 <em>→ 距離を外す・ガードする</em></span><span>ガード <em>→ ボディや別角度を狙う</em></span><span>空振り <em>→ 隙を見て反撃</em></span></div>","b":"<p>攻撃を当てるだけでなく、相手の動きを見て選択を変えることが大切です。連打した後の隙、ガードの癖、空振りを見逃さないようにしましょう。</p><p>CPUも攻撃頻度・同じ技の繰り返し・ガード傾向・空振りを観察して行動を変えます。難易度が高いほど反応や距離調整が鋭くなります。</p>"},{"t":"⑨ 練習モード","v":"<div class=\"kcs\"><span class=\"kc\">1</span><span class=\"kc\">2</span><span class=\"kc\">3</span><span class=\"kc\">4</span></div><div class=\"tri\"><span>ヘビーバッグ</span><span>リフレックスボール</span><span>スパーリングスタンド</span></div>","b":"<p>サンドバッグモードではスタミナを気にせず練習できます。<b>1</b>＝ヘビーバッグ、<b>2</b>＝リフレックスボール、<b>3</b>＝スパーリングスタンド、<b>4</b>＝人型ダミーに切り替えられます。</p><p>リフレックスボールは自分で揺れながら、パンチを受けると大きく跳ね返ります。スパーリングスタンドのバーは自動でゆっくり／素早く動きを変え、当てるとさらに回転します。</p>"}],
  init(){const B=(id,f)=>{$(id).onclick=f};B('tutprev',()=>this.go(-1));B('tutnext',()=>{if(this.i>=this.pages.length-1)this.close();else this.go(1)});B('tutclose',()=>this.close());
   addEventListener('keydown',e=>{if($('tut').classList.contains('off'))return;if(e.code==='ArrowRight')this.go(1);else if(e.code==='ArrowLeft')this.go(-1);else if(e.code==='Escape')this.close()})},
  open(){this.i=0;$('tut').classList.remove('off');this.render();clearInterval(this.tm);this.tm=setInterval(()=>this.status(),400);this.status();$('tutnext').focus()},
@@ -644,7 +647,7 @@ const Tut={i:0,tm:null,pages:[{"t": "① 基本移動（WASD）", "v": "<div cla
    ・入力だけを送り、状態はサーバーのスナップショットを補間して表示します。
    ・NET の数値は初期設定です。URLに ?inputHz=45&interp=150 を付けて試せます。 */
 const NET={
- server:'wss://ring-first.onrender.com',
+ server:'wss://ring-first.onrender.com',   // ★ここにRenderのURLを設定（https:// ではなく wss:// で始める）
  inputHz:30,          // 入力送信頻度（10〜60）
  interpMs:100,        // 補間遅延。サーバーのstateHzから自動で下限を決める（20Hzなら100ms）
  wakeTimeoutMs:100000,// Render無料枠の起動待ちの上限
@@ -707,7 +710,7 @@ class Online{
  /* ---------- 接続（Render無料枠の起動待ちを含む） ---------- */
  send(m){if(this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(m))}
  async go(m){this.abort=false;this.intentClose=false;this.msg('');
-  if(m.t!=='rejoin'){m.name=cleanName($('onname').value)||'PLAYER';localStorage.setItem('rf_name',m.name)}
+  if(m.t!=='rejoin'){m.stance=Settings.stance;m.name=cleanName($('onname').value)||'PLAYER';localStorage.setItem('rf_name',m.name)}
   if(this.ws&&this.ws.readyState===1){this.send(m);return}
   if(!/^wss?:\/\//.test(NET.server)||NET.server.includes('YOUR-APP')){
    this.msg('サーバーURLが未設定です。\nindex.html 先頭付近の NET.server に、Renderで発行されたURL（wss://〜）を設定してください。\n（手順は README.md を参照）');return}
@@ -759,7 +762,7 @@ class Online{
   case'chat':this.addChat(m);break;
   case'end':this.endMatch(m);break}}
  startMatch(m){this.fx={};this.order=[];this.snaps=[];this.evq=[];this.skew=null;this.curPhase='';this.live=false;this.offs=null;
-  for(const p of m.fs){const f=new Fighter(false);f.id=p.id;f.name=p.name;f.slot=p.slot;f.picks=(m.picks&&m.picks[p.id])||[];f.setPicks();this.fx[p.id]=f;this.order.push(f)}
+  for(const p of m.fs){const f=new Fighter(false);f.id=p.id;f.name=p.name;f.slot=p.slot;f.stance=p.sn?'south':'orth';f.picks=(m.picks&&m.picks[p.id])||[];f.setPicks();this.fx[p.id]=f;this.order.push(f)}
   if(!$('tut').classList.contains('off')){Tut.close();UI.toast('試合が始まります！',1500)}
   this.me=this.fx[this.id];if(!this.me)return;this.mode=m.mode;this.menuOpen=false;this.cineOn=false;this.g.showPause(false,true);
   this.g.v.setFighters(this.me,this.order.filter(f=>f!==this.me));this.g.state='online';this.g.inp.clear();
